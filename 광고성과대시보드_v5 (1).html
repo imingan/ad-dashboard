@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>광고 성과 대시보드</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:     #f0f0f4;
+  --bg2:    #ffffff;
+  --bg3:    #e8e8ee;
+  --bg4:    #dddde6;
+  --border: #d4d4de;
+  --border2:#c0c0ce;
+  --text:   #1a1a2e;
+  --text2:  #4a4a6a;
+  --text3:  #8888aa;
+  --accent: #5b6ef5;
+  --accent2:#3a52e0;
+  --green:  #16a05a;
+  --red:    #d94040;
+  --yellow: #c89a00;
+  --orange: #d96b20;
+  --meta:   #0070e0;
+  --google: #1a8c3e;
+  --r: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg3); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── Setup Modal ── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(200,200,220,.7);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+  backdrop-filter: blur(6px);
+}
+.modal-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 560px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,.12);
+}
+.modal-logo { font-family: 'Syne', sans-serif; font-size: 13px; color: var(--accent); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px; }
+.modal-title { font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+.modal-sub { font-size: 13px; color: var(--text2); margin-bottom: 32px; line-height: 1.7; }
+.setup-step { display: flex; gap: 14px; margin-bottom: 24px; }
+.step-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.step-body h4 { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.step-body p  { font-size: 12px; color: var(--text2); line-height: 1.7; }
+.step-body a  { color: var(--accent); }
+.field-group { margin-top: 10px; }
+.field-label { font-size: 11px; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.field-input {
+  width: 100%; background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: var(--r); padding: 10px 14px;
+  color: #fff; font-size: 13px; font-family: 'DM Mono', monospace;
+  outline: none; transition: border-color .15s;
+}
+.field-input:focus { border-color: var(--accent); }
+.field-input::placeholder { color: var(--text3); }
+.modal-divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+.btn { padding: 10px 22px; border-radius: var(--r); border: none; cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit; transition: all .15s; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #4a5de0; }
+.btn-ghost { background: transparent; border: 1px solid var(--border2); color: var(--text2); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent2); }
+.err { background: rgba(242,92,92,.1); border: 1px solid rgba(242,92,92,.3); border-radius: var(--r); padding: 10px 14px; color: var(--red); font-size: 12px; margin-top: 10px; display: none; }
+
+/* ── App Layout ── */
+.app { max-width: 1440px; margin: 0 auto; padding: 24px; }
+
+/* ── Header ── */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 28px; flex-wrap: wrap; gap: 12px;
+  padding-bottom: 20px; border-bottom: 1px solid var(--border);
+}
+.header-left { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.logo { font-family: 'Syne', sans-serif; }
+.logo-eyebrow { font-size: 9px; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; margin-bottom: 2px; }
+.logo-title { font-size: 20px; font-weight: 800; color: #fff; }
+.date-picker-wrap { position: relative; }
+.date-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: var(--r); padding: 7px 16px;
+  color: #fff; cursor: pointer; font-size: 14px; font-family: 'DM Mono', monospace;
+  transition: border-color .15s;
+}
+.date-btn:hover { border-color: var(--accent); }
+.date-btn-icon { font-size: 14px; opacity: .6; }
+
+/* ── Calendar Popup ── */
+.cal-popup {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 100;
+  background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 12px; padding: 16px;
+  box-shadow: 0 16px 48px rgba(0,0,0,.5);
+  min-width: 280px; display: none;
+}
+.cal-popup.open { display: block; }
+.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.cal-month-label { font-size: 14px; font-weight: 700; color: #fff; }
+.cal-nav { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--text2); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+.cal-nav:hover { border-color: var(--accent); color: var(--accent2); }
+.cal-weekdays { display: grid; grid-template-columns: repeat(7,1fr); margin-bottom: 6px; }
+.cal-wd { text-align: center; font-size: 11px; font-weight: 600; color: var(--text3); padding: 4px 0; }
+.cal-days { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; }
+.cal-day {
+  aspect-ratio: 1; border-radius: 6px; border: none; background: transparent;
+  color: var(--text2); font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .1s; font-family: 'DM Mono', monospace;
+}
+.cal-day:hover:not(.empty):not(.selected) { background: var(--bg3); color: #fff; }
+.cal-day.selected { background: var(--accent); color: #fff; font-weight: 700; }
+.cal-day.today { border: 1px solid var(--accent); color: var(--accent2); }
+.cal-day.today.selected { border-color: transparent; }
+.cal-day.other-month { color: var(--text3); opacity: .4; }
+.cal-day.empty { cursor: default; }
+.cal-shortcuts { display: flex; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.cal-shortcut { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--text2); font-size: 11px; cursor: pointer; font-family: inherit; transition: all .15s; }
+.cal-shortcut:hover { border-color: var(--accent); color: var(--accent2); }
+.header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.live-badge {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; color: var(--green);
+  background: rgba(22,160,90,.1); border: 1px solid rgba(22,160,90,.25);
+  border-radius: 20px; padding: 4px 12px;
+}
+.live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+.last-update { font-size: 11px; color: var(--text3); }
+
+/* ── Period Tabs ── */
+.period-tabs { display: flex; gap: 2px; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--r); padding: 3px; }
+.period-tab { padding: 5px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; background: transparent; color: var(--text3); transition: all .15s; font-family: inherit; }
+.period-tab.active { background: var(--accent); color: #fff; }
+.period-tab:hover:not(.active) { color: var(--text); }
+
+/* ── Section ── */
+.section { margin-bottom: 24px; }
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text2);
+  display: flex; align-items: center; gap: 8px;
+}
+.section-title::before { content:''; width: 3px; height: 14px; background: var(--accent); border-radius: 2px; display: inline-block; }
+
+/* ── Cards ── */
+.cards-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px 18px;
+  transition: border-color .15s; position: relative; overflow: hidden;
+}
+.card::before { content:''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--card-color, var(--accent)); }
+.card:hover { border-color: var(--border2); }
+.card-label { font-size: 11px; color: var(--text2); letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 500; }
+.card-value { font-family: 'DM Mono', monospace; font-size: 24px; font-weight: 600; color: var(--text); }
+.card-sub { font-size: 12px; color: var(--text3); margin-top: 5px; }
+.card-delta { font-size: 11px; margin-top: 4px; display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 4px; }
+.delta-up   { color: var(--red);   background: rgba(217,64,64,.1); }
+.delta-down { color: var(--green); background: rgba(22,160,90,.1); }
+.delta-neu  { color: var(--text2); background: rgba(0,0,0,.05); }
+.delta-up-good   { color: var(--green); background: rgba(22,160,90,.1); }
+
+/* ── Admin Input ── */
+.admin-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 20px; }
+.admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.admin-field label { display: block; font-size: 12px; color: var(--text2); font-weight: 500; margin-bottom: 6px; }
+.admin-input {
+  width: 100%; background: var(--bg3); border: 1px solid var(--border2);
+  border-radius: 6px; padding: 9px 12px; color: #fff;
+  font-size: 14px; font-family: 'DM Mono', monospace; outline: none;
+  transition: border-color .15s;
+}
+.admin-input:focus { border-color: var(--accent); }
+.admin-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.save-msg { font-size: 12px; color: var(--green); opacity: 0; transition: opacity .3s; }
+
+/* ── Upload Zone ── */
+.upload-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media(max-width:640px) { .upload-row { grid-template-columns: 1fr; } }
+.upload-card {
+  background: var(--bg2); border: 2px dashed var(--border2);
+  border-radius: var(--r); padding: 20px;
+  transition: all .2s; cursor: pointer; position: relative;
+}
+.upload-card:hover, .upload-card.drag { border-color: var(--accent); background: rgba(91,110,245,.04); }
+.upload-card.done { border-style: solid; border-color: var(--border2); cursor: default; }
+.upload-platform { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.platform-dot { width: 10px; height: 10px; border-radius: 50%; }
+.platform-name { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; }
+.upload-hint { font-size: 12px; color: var(--text3); margin-bottom: 14px; }
+.upload-btn-wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.upload-status { font-size: 12px; }
+.upload-status.ok  { color: var(--green); }
+.upload-status.err { color: var(--red); }
+.upload-input { display: none; }
+.upload-clear { font-size: 11px; color: var(--text3); background: none; border: none; cursor: pointer; padding: 0; transition: color .15s; }
+.upload-clear:hover { color: var(--red); }
+
+/* ── Connector Section ── */
+.connector-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+@media(max-width:900px) { .connector-grid { grid-template-columns: 1fr; } }
+.connector-main { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.alert-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; }
+.alert-title { font-size: 11px; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.alert-item {
+  padding: 10px 12px; border-radius: 6px; margin-bottom: 8px;
+  font-size: 12px; line-height: 1.5;
+  border: 1px solid;
+}
+.alert-warn { background: rgba(217,107,32,.08); border-color: rgba(217,107,32,.25); color: var(--orange); }
+.alert-danger { background: rgba(217,64,64,.08); border-color: rgba(217,64,64,.25); color: var(--red); }
+.alert-ok { background: rgba(22,160,90,.08); border-color: rgba(22,160,90,.25); color: var(--green); font-size: 12px; padding: 10px 12px; border-radius: 6px; border: 1px solid; }
+.alert-empty { font-size: 12px; color: var(--text3); text-align: center; padding: 20px; }
+
+/* ── Drilldown ── */
+.drill-tabs { display: flex; gap: 4px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 4px; width: fit-content; margin-bottom: 16px; }
+.drill-tab { padding: 6px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 600; background: transparent; color: var(--text3); transition: all .15s; font-family: inherit; }
+.drill-tab.active { background: var(--accent); color: #fff; }
+.drill-tab:hover:not(.active) { color: var(--text); }
+
+/* ── Table ── */
+.tbl-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead th {
+  padding: 10px 14px; text-align: right;
+  color: var(--text2); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+thead th:first-child { text-align: left; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+tbody tr:hover { background: rgba(91,110,245,.04); }
+tbody td { padding: 12px 14px; text-align: right; color: var(--text2); font-family: 'DM Mono', monospace; font-size: 13px; white-space: nowrap; }
+tbody td:first-child { text-align: left; color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-size: 13px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; } { color: var(--orange) !important; }
+.tbl-danger { color: var(--red) !important; }
+.badge-warn { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 3px; background: rgba(217,107,32,.12); color: var(--orange); margin-left: 4px; }
+.badge-danger { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 3px; background: rgba(217,64,64,.12); color: var(--red); margin-left: 4px; }
+.tbl-empty { text-align: center; padding: 48px; color: var(--text3); }
+
+/* ── No Data Overlay ── */
+.no-data { text-align: center; padding: 60px 24px; color: var(--text3); }
+.no-data-icon { font-size: 36px; margin-bottom: 12px; }
+.no-data-text { font-size: 13px; }
+
+/* ── Charts ── */
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+@media(max-width:860px) { .chart-grid { grid-template-columns: 1fr; } }
+.chart-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 20px;
+}
+.chart-card-full {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 20px; margin-bottom: 16px;
+}
+.chart-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.chart-sub { font-size: 11px; color: var(--text3); margin-bottom: 16px; }
+.chart-wrap { position: relative; }
+
+/* ── Enhanced cards with delta bar ── */
+.delta-bar-wrap { margin-top: 10px; }
+.delta-bar-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+.delta-bar-track { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+.delta-bar-fill { height: 100%; border-radius: 2px; transition: width .4s ease; }
+
+/* ── KPI row ── */
+.kpi-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.kpi-col { padding: 14px 18px; }
+.kpi-col:first-child { border-right: 1px solid var(--border); }
+.kpi-platform { font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+.kpi-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--bg3); }
+.kpi-row:last-child { border-bottom: none; }
+.kpi-metric { font-size: 12px; color: var(--text2); }
+.kpi-val { font-size: 13px; font-weight: 600; font-family: 'DM Mono', monospace; color: var(--text); }
+.kpi-delta-inline { font-size: 10px; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+
+/* ── Sparkline in card ── */
+.card-spark { margin-top: 8px; height: 36px; }
+.tag-meta   { color: var(--meta);   }
+.tag-google { color: var(--google); }
+.mono { font-family: 'DM Mono', monospace; }
+.up { color: var(--red); }
+.down { color: var(--green); }
+.divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+/* ── Skeleton ── */
+.skeleton { background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%); background-size: 200%; animation: shimmer 1.5s infinite; border-radius: 4px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }</style>
+</head>
+<body>
+
+<!-- ══ SETUP MODAL ══ -->
+<div class="modal-overlay" id="setupModal">
+  <div class="modal-card">
+    <div class="modal-logo">Ad Performance Dashboard</div>
+    <div class="modal-title">처음 한 번만 설정하면 돼요 👋</div>
+    <div class="modal-sub">데이터를 저장할 JSONBin 계정이 필요해요.<br>무료이고 가입은 2분이면 끝나요.</div>
+
+    <div class="setup-step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>JSONBin 가입</h4>
+        <p><a href="https://jsonbin.io" target="_blank">jsonbin.io</a> 접속 → 구글 계정으로 가입 (무료)</p>
+      </div>
+    </div>
+    <div class="setup-step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>API 키 복사</h4>
+        <p>로그인 후 우측 상단 프로필 → <b>API Keys</b> → <b>Master Key</b> 복사</p>
+      </div>
+    </div>
+    <div class="setup-step" style="margin-bottom:4px">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>아래에 붙여넣기</h4>
+        <div class="field-group">
+          <div class="field-label">Master API Key</div>
+          <input class="field-input" id="apiKeyInput" type="password" placeholder="$2b$10$..."/>
+        </div>
+      </div>
+    </div>
+    <div class="err" id="setupErr"></div>
+    <hr class="modal-divider"/>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="initSetup()">연결하기 →</button>
+      <span style="font-size:12px;color:var(--text3)">이미 설정한 적 있어요</span>
+      <div class="field-group" style="flex:1;min-width:200px">
+        <input class="field-input" id="binIdInput" type="text" placeholder="Bin ID (선택사항)" style="font-size:12px;padding:7px 12px"/>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MAIN APP ══ -->
+<div class="app" id="app" style="display:none">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">
+        <div class="logo-eyebrow">Ad Performance</div>
+        <div class="logo-title">광고 성과 대시보드</div>
+      </div>
+      <div class="date-picker-wrap" id="datePickerWrap">
+        <button class="date-btn" onclick="toggleCal()" id="dateBtn">
+          <span class="date-btn-icon">📅</span>
+          <span id="dateText">날짜 선택</span>
+        </button>
+        <div class="cal-popup" id="calPopup">
+          <div class="cal-header">
+            <button class="cal-nav" onclick="calShiftMonth(-1)">‹</button>
+            <span class="cal-month-label" id="calMonthLabel"></span>
+            <button class="cal-nav" onclick="calShiftMonth(1)">›</button>
+          </div>
+          <div class="cal-weekdays">
+            <div class="cal-wd">일</div><div class="cal-wd">월</div><div class="cal-wd">화</div>
+            <div class="cal-wd">수</div><div class="cal-wd">목</div><div class="cal-wd">금</div>
+            <div class="cal-wd">토</div>
+          </div>
+          <div class="cal-days" id="calDays"></div>
+          <div class="cal-shortcuts">
+            <button class="cal-shortcut" onclick="pickShortcut('today')">오늘</button>
+            <button class="cal-shortcut" onclick="pickShortcut('yesterday')">어제</button>
+            <button class="cal-shortcut" onclick="pickShortcut('3days')">3일 전</button>
+            <button class="cal-shortcut" onclick="pickShortcut('weekago')">일주일 전</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="period-tabs" id="periodTabs">
+        <button class="period-tab active" onclick="setPeriod('daily',this)">일별</button>
+        <button class="period-tab" onclick="setPeriod('weekly',this)">주별</button>
+        <button class="period-tab" onclick="setPeriod('monthly',this)">월별</button>
+      </div>
+      <div class="live-badge"><div class="live-dot"></div>LIVE</div>
+      <span class="last-update" id="lastUpdate"></span>
+      <button class="btn btn-ghost" onclick="showSetup()" style="font-size:12px;padding:6px 12px">⚙ 설정</button>
+    </div>
+  </div>
+
+  <!-- ① 비즈니스 성과 (어드민 입력) -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">레이어 1 — 비즈니스 성과 (어드민 입력)</div>
+      <span class="period-label" style="font-size:12px;color:var(--text3)"></span>
+    </div>
+    <div class="cards-row" id="adminCards" style="margin-bottom:14px"></div>
+    <div class="admin-panel">
+      <div class="admin-grid">
+        <div class="admin-field">
+          <label>매출 (원)</label>
+          <input class="admin-input" id="inp_revenue" type="number" placeholder="42000000"/>
+        </div>
+        <div class="admin-field">
+          <label>구매 (건)</label>
+          <input class="admin-input" id="inp_purchases" type="number" placeholder="45"/>
+        </div>
+        <div class="admin-field">
+          <label>신규 회원가입</label>
+          <input class="admin-input" id="inp_registrations" type="number" placeholder="130"/>
+        </div>
+        <div class="admin-field">
+          <label>쿠폰 다운로드</label>
+          <input class="admin-input" id="inp_couponDown" type="number" placeholder="280"/>
+        </div>
+        <div class="admin-field">
+          <label>쿠폰 사용/결제</label>
+          <input class="admin-input" id="inp_couponUsed" type="number" placeholder="61"/>
+        </div>
+      </div>
+      <div class="admin-actions">
+        <button class="btn btn-primary" onclick="saveAdmin()" style="font-size:12px;padding:8px 18px">💾 저장</button>
+        <span class="save-msg" id="saveMsg">✓ 저장되었어요</span>
+        <span style="font-size:11px;color:var(--text3);margin-left:auto">데이터는 JSONBin에 자동 저장돼요</span>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- ② 광고 성과 (CSV 업로드) -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">레이어 2 — 광고 성과 (CSV 업로드)</div>
+      <span style="font-size:11px;color:var(--text3)">같은 날짜는 최신 데이터로 자동 덮어쓰기</span>
+    </div>
+    <div class="upload-row" style="margin-bottom:16px">
+      <!-- META -->
+      <div class="upload-card" id="metaDrop" ondragover="dragOver(event,'metaDrop')" ondragleave="dragLeave('metaDrop')" ondrop="dropFile(event,'meta')">
+        <div class="upload-platform">
+          <div class="platform-dot" style="background:var(--meta)"></div>
+          <div class="platform-name" style="color:var(--meta)">META</div>
+        </div>
+        <div class="upload-hint">캠페인 단위 CSV<br>일 / 캠페인명 / 지출금액 / 등록완료 / 체험판 / 앱설치 / 구매</div>
+        <div class="upload-btn-wrap">
+          <button class="btn btn-ghost" onclick="document.getElementById('metaFile').click()" style="font-size:12px;padding:6px 14px">파일 선택</button>
+          <span class="upload-status" id="metaStatus"></span>
+          <button class="upload-clear" id="metaClear" onclick="clearUpload('meta')" style="display:none">✕ 초기화</button>
+        </div>
+        <input type="file" class="upload-input" id="metaFile" accept=".csv" onchange="handleFile(this,'meta')"/>
+      </div>
+      <!-- Google -->
+      <div class="upload-card" id="googleDrop" ondragover="dragOver(event,'googleDrop')" ondragleave="dragLeave('googleDrop')" ondrop="dropFile(event,'google')">
+        <div class="upload-platform">
+          <div class="platform-dot" style="background:var(--google)"></div>
+          <div class="platform-name" style="color:var(--google)">Google Ads</div>
+        </div>
+        <div class="upload-hint">캠페인 단위 CSV<br>일 / 캠페인 / 비용 / 회원가입 / 설치 / 구매 / 전환당비용</div>
+        <div class="upload-btn-wrap">
+          <button class="btn btn-ghost" onclick="document.getElementById('googleFile').click()" style="font-size:12px;padding:6px 14px">파일 선택</button>
+          <span class="upload-status" id="googleStatus"></span>
+          <button class="upload-clear" id="googleClear" onclick="clearUpload('google')" style="display:none">✕ 초기화</button>
+        </div>
+        <input type="file" class="upload-input" id="googleFile" accept=".csv" onchange="handleFile(this,'google')"/>
+      </div>
+    </div>
+    <!-- Ad summary cards -->
+    <div class="cards-row" id="adCards"></div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- ③ 연결고리 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">레이어 3 — 연결고리 & 이상감지</div>
+    </div>
+    <div class="connector-grid">
+      <div class="connector-main" id="connectorCards"></div>
+      <div class="alert-panel">
+        <div class="alert-title">⚠️ 이상감지</div>
+        <div id="alertList"><div class="alert-empty">전날 대비 데이터를 비교 중...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- ⑤ 차트 & 비주얼 분석 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">레이어 5 — 트렌드 & 비교 차트</div>
+      <span style="font-size:11px;color:var(--text3)">최근 14일 기준</span>
+    </div>
+
+    <!-- 전체 트렌드 라인 -->
+    <div class="chart-card-full">
+      <div class="chart-title">📈 광고비 & ROAS 추이</div>
+      <div class="chart-sub">일별 총 광고비(META+Google)와 통합 ROAS 흐름</div>
+      <div class="chart-wrap" style="height:200px">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <!-- META vs Google 광고비 비교 -->
+      <div class="chart-card">
+        <div class="chart-title">💰 매체별 광고비 비교</div>
+        <div class="chart-sub">최근 7일 META vs Google 일별 광고비</div>
+        <div class="chart-wrap" style="height:180px">
+          <canvas id="spendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- CPA 비교 -->
+      <div class="chart-card">
+        <div class="chart-title">🎯 매체별 CPA 비교</div>
+        <div class="chart-sub">등록완료/설치 기준 CPA 추이</div>
+        <div class="chart-wrap" style="height:180px">
+          <canvas id="cpaChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- 전일 대비 KPI 비교 패널 -->
+    <div class="chart-card-full" style="padding:0;overflow:hidden">
+      <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border)">
+        <div class="chart-title">📊 전일 대비 매체별 핵심 지표</div>
+      </div>
+      <div class="kpi-compare" id="kpiCompare"></div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- ④ 캠페인 드릴다운 -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">레이어 4 — 캠페인 드릴다운</div>
+    </div>
+    <div class="drill-tabs">
+      <button class="drill-tab active" onclick="showDrill('meta',this)">META 캠페인</button>
+      <button class="drill-tab" onclick="showDrill('google',this)">Google 캠페인</button>
+    </div>
+    <div class="tbl-wrap">
+      <table id="drillTable">
+        <thead id="drillHead"></thead>
+        <tbody id="drillBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+// ══════════════════════════════════════════════
+//  Constants & State
+// ══════════════════════════════════════════════
+const JSONBIN_BASE = 'https://api.jsonbin.io/v3';
+let STATE = {
+  apiKey: '',
+  binId: '',
+  selectedDate: '',    // YYYY-MM-DD
+  period: 'daily',     // 'daily' | 'weekly' | 'monthly'
+  data: {
+    admin: {},
+    meta:  [],
+    google:[]
+  },
+  lastSaved: null,
+  currentDrillTab: 'meta'
+};
+
+// ══════════════════════════════════════════════
+//  Helpers
+// ══════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const prevDate = d => {
+  const dt = new Date(d); dt.setDate(dt.getDate()-1);
+  return dt.toISOString().split('T')[0];
+};
+
+// 기간별 날짜 범위 계산
+function getPeriodRange(date, period) {
+  const d = new Date(date + 'T00:00:00');
+  if (period === 'daily') {
+    return { start: date, end: date };
+  } else if (period === 'weekly') {
+    const day = d.getDay(); // 0=일
+    const diff = day === 0 ? -6 : 1 - day;
+    const mon = new Date(d); mon.setDate(d.getDate() + diff);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    return { start: mon.toISOString().split('T')[0], end: sun.toISOString().split('T')[0] };
+  } else { // monthly
+    return { start: date.slice(0,7)+'-01', end: date };
+  }
+}
+
+function getPrevPeriodRange(date, period) {
+  const d = new Date(date + 'T00:00:00');
+  if (period === 'daily') {
+    const p = prevDate(date); return { start: p, end: p };
+  } else if (period === 'weekly') {
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    const mon = new Date(d); mon.setDate(d.getDate() + diff - 7);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    return { start: mon.toISOString().split('T')[0], end: sun.toISOString().split('T')[0] };
+  } else {
+    const prevMonth = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+    const lastDay = new Date(d.getFullYear(), d.getMonth(), 0);
+    return { start: prevMonth.toISOString().split('T')[0], end: lastDay.toISOString().split('T')[0] };
+  }
+}
+
+function setPeriod(p, el) {
+  STATE.period = p;
+  document.querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderAll();
+}
+const numClean = s => {
+  if (s === null || s === undefined) return 0;
+  const n = parseFloat(String(s).replace(/,/g,'').replace(/%/g,'').trim());
+  return isNaN(n) ? 0 : n;
+};
+const won = n => {
+  if (!n && n !== 0) return '-';
+  if (Math.abs(n) >= 100000000) return `${(n/100000000).toFixed(1)}억`;
+  if (Math.abs(n) >= 10000)     return `${(n/10000).toFixed(0)}만`;
+  return Math.round(n).toLocaleString();
+};
+const wonFull = n => n ? Math.round(n).toLocaleString() : '-';
+const num = n => n != null ? Math.round(n).toLocaleString() : '-';
+const pct = n => n != null ? n.toFixed(2)+'%' : '-';
+const x   = n => n != null ? n.toFixed(2)+'x' : '-';
+const cpaFmt = n => n ? `${won(n)}원` : '-';
+
+function delta(cur, prev) {
+  if (!prev || !cur) return null;
+  return ((cur - prev) / prev) * 100;
+}
+function deltaEl(d, inverse=false) {
+  if (d === null) return '';
+  const cls = d === 0 ? 'delta-neu' : (inverse ? (d > 0 ? 'delta-down' : 'delta-up') : (d > 0 ? 'delta-up-good' : 'delta-down'));
+  const sign = d > 0 ? '+' : '';
+  return `<span class="card-delta ${cls}">${sign}${d.toFixed(1)}%</span>`;
+}
+
+function formatDate(d) {
+  const dt = new Date(d+'T00:00:00');
+  const wd = ['일','월','화','수','목','금','토'][dt.getDay()];
+  return `${d} (${wd})`;
+}
+
+// ══════════════════════════════════════════════
+//  JSONBin API
+// ══════════════════════════════════════════════
+async function createBin() {
+  const res = await fetch(`${JSONBIN_BASE}/b`, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'X-Master-Key': STATE.apiKey, 'X-Bin-Name':'ad-dashboard', 'X-Bin-Private':'false' },
+    body: JSON.stringify(STATE.data)
+  });
+  if (!res.ok) throw new Error('Bin 생성 실패');
+  const j = await res.json();
+  return j.metadata.id;
+}
+
+async function loadBin() {
+  const res = await fetch(`${JSONBIN_BASE}/b/${STATE.binId}/latest`, {
+    headers: { 'X-Master-Key': STATE.apiKey }
+  });
+  if (!res.ok) throw new Error('데이터 로드 실패');
+  const j = await res.json();
+  return j.record;
+}
+
+async function saveBin() {
+  const res = await fetch(`${JSONBIN_BASE}/b/${STATE.binId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type':'application/json', 'X-Master-Key': STATE.apiKey },
+    body: JSON.stringify(STATE.data)
+  });
+  if (!res.ok) throw new Error('저장 실패');
+  STATE.lastSaved = new Date();
+  updateLastUpdate();
+}
+
+// ══════════════════════════════════════════════
+//  Setup
+// ══════════════════════════════════════════════
+async function initSetup() {
+  const key = $('apiKeyInput').value.trim();
+  const binId = $('binIdInput').value.trim();
+  if (!key) { showErr('API 키를 입력해주세요'); return; }
+
+  STATE.apiKey = key;
+  $('setupErr').style.display = 'none';
+
+  try {
+    if (binId) {
+      STATE.binId = binId;
+      const remote = await loadBin();
+      STATE.data = mergeData(STATE.data, remote);
+    } else {
+      STATE.binId = await createBin();
+    }
+    localStorage.setItem('dash_key', key);
+    localStorage.setItem('dash_bin', STATE.binId);
+    hideSetup();
+    boot();
+  } catch(e) {
+    showErr('연결 실패: ' + e.message + ' — API 키와 Bin ID를 확인해주세요');
+  }
+}
+
+function mergeData(local, remote) {
+  if (!remote) return local;
+  return {
+    admin:  { ...local.admin,  ...(remote.admin  || {}) },
+    meta:   [...(local.meta   || []), ...(remote.meta   || [])].filter((v,i,a)=> a.findIndex(x=>x.date===v.date&&x.campaign===v.campaign)===i),
+    google: [...(local.google || []), ...(remote.google || [])].filter((v,i,a)=> a.findIndex(x=>x.date===v.date&&x.campaign===v.campaign)===i),
+  };
+}
+
+function showErr(msg) { $('setupErr').textContent = msg; $('setupErr').style.display = 'block'; }
+function showSetup() { $('setupModal').style.display = 'flex'; }
+function hideSetup() { $('setupModal').style.display = 'none'; }
+
+// ══════════════════════════════════════════════
+//  Boot
+// ══════════════════════════════════════════════
+async function boot() {
+  $('app').style.display = 'block';
+  const yd = new Date(); yd.setDate(yd.getDate()-1);
+  STATE.selectedDate = yd.toISOString().split('T')[0];
+  updateDateDisplay();
+
+  try {
+    const remote = await loadBin();
+    if (remote) {
+      STATE.data = {
+        admin:  remote.admin  || {},
+        meta:   remote.meta   || [],
+        google: remote.google || [],
+      };
+    }
+    updateLastUpdate();
+  } catch(e) { console.warn('원격 로드 실패:', e.message); }
+
+  renderAll();
+}
+
+window.onload = () => {
+  const key = localStorage.getItem('dash_key');
+  const bin = localStorage.getItem('dash_bin');
+  if (key && bin) {
+    STATE.apiKey = key;
+    STATE.binId = bin;
+    hideSetup();
+    boot();
+  }
+};
+
+// ══════════════════════════════════════════════
+//  Calendar
+// ══════════════════════════════════════════════
+let calViewYear, calViewMonth; // 달력이 보여주는 연/월
+
+function toggleCal() {
+  const popup = $('calPopup');
+  if (popup.classList.contains('open')) {
+    popup.classList.remove('open');
+  } else {
+    const d = STATE.selectedDate ? new Date(STATE.selectedDate + 'T00:00:00') : new Date();
+    calViewYear  = d.getFullYear();
+    calViewMonth = d.getMonth();
+    renderCal();
+    popup.classList.add('open');
+  }
+}
+
+// 달력 외부 클릭시 닫기
+document.addEventListener('click', e => {
+  if (!$('datePickerWrap')?.contains(e.target)) $('calPopup')?.classList.remove('open');
+});
+
+function calShiftMonth(d) {
+  calViewMonth += d;
+  if (calViewMonth > 11) { calViewMonth = 0;  calViewYear++; }
+  if (calViewMonth < 0)  { calViewMonth = 11; calViewYear--; }
+  renderCal();
+}
+
+function renderCal() {
+  $('calMonthLabel').textContent = `${calViewYear}년 ${calViewMonth+1}월`;
+  const today = toDateStr(new Date());
+  const firstDay = new Date(calViewYear, calViewMonth, 1).getDay(); // 0=일
+  const lastDate = new Date(calViewYear, calViewMonth+1, 0).getDate();
+  // prev month tail
+  const prevLast = new Date(calViewYear, calViewMonth, 0).getDate();
+
+  let html = '';
+  // leading empty cells
+  for (let i = 0; i < firstDay; i++) {
+    const d = prevLast - firstDay + 1 + i;
+    html += `<button class="cal-day other-month empty" onclick="pickDate('${padDate(calViewYear, calViewMonth-1 < 0 ? 11 : calViewMonth-1, d)}')">${d}</button>`;
+  }
+  for (let d = 1; d <= lastDate; d++) {
+    const dateStr = padDate(calViewYear, calViewMonth, d);
+    const isSel   = dateStr === STATE.selectedDate;
+    const isToday = dateStr === today;
+    const cls = [isSel?'selected':'', isToday?'today':''].filter(Boolean).join(' ');
+    html += `<button class="cal-day ${cls}" onclick="pickDate('${dateStr}')">${d}</button>`;
+  }
+  // trailing
+  const total = firstDay + lastDate;
+  const trailing = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let d = 1; d <= trailing; d++) {
+    html += `<button class="cal-day other-month" onclick="pickDate('${padDate(calViewYear, calViewMonth+1 > 11 ? 0 : calViewMonth+1, d)}')">${d}</button>`;
+  }
+  $('calDays').innerHTML = html;
+}
+
+function padDate(y, m, d) {
+  const dt = new Date(y, m, d);
+  return dt.toISOString().split('T')[0];
+}
+
+function toDateStr(dt) { return dt.toISOString().split('T')[0]; }
+
+function pickDate(dateStr) {
+  STATE.selectedDate = dateStr;
+  updateDateDisplay();
+  $('calPopup').classList.remove('open');
+  renderAll();
+}
+
+function pickShortcut(key) {
+  const d = new Date();
+  if (key === 'today')     { pickDate(toDateStr(d)); }
+  if (key === 'yesterday') { d.setDate(d.getDate()-1); pickDate(toDateStr(d)); }
+  if (key === '3days')     { d.setDate(d.getDate()-3); pickDate(toDateStr(d)); }
+  if (key === 'weekago')   { d.setDate(d.getDate()-7); pickDate(toDateStr(d)); }
+}
+
+function updateDateDisplay() {
+  if (!STATE.selectedDate) return;
+  const dt = new Date(STATE.selectedDate + 'T00:00:00');
+  const wd = ['일','월','화','수','목','금','토'][dt.getDay()];
+  $('dateText').textContent = `${STATE.selectedDate} (${wd})`;
+}
+function updateLastUpdate() {
+  if (STATE.lastSaved) $('lastUpdate').textContent = '저장: ' + STATE.lastSaved.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ══════════════════════════════════════════════
+//  Admin Save/Load
+// ══════════════════════════════════════════════
+function loadAdminInputs() {
+  const d = STATE.data.admin[STATE.selectedDate] || {};
+  $('inp_revenue').value       = d.revenue       || '';
+  $('inp_purchases').value     = d.purchases     || '';
+  $('inp_registrations').value = d.registrations || '';
+  $('inp_couponDown').value    = d.couponDown    || '';
+  $('inp_couponUsed').value    = d.couponUsed    || '';
+}
+
+async function saveAdmin() {
+  STATE.data.admin[STATE.selectedDate] = {
+    revenue:       numClean($('inp_revenue').value),
+    purchases:     numClean($('inp_purchases').value),
+    registrations: numClean($('inp_registrations').value),
+    couponDown:    numClean($('inp_couponDown').value),
+    couponUsed:    numClean($('inp_couponUsed').value),
+  };
+  try {
+    await saveBin();
+    const msg = $('saveMsg');
+    msg.style.opacity = '1';
+    setTimeout(() => msg.style.opacity = '0', 2000);
+    renderAll();
+  } catch(e) { alert('저장 실패: ' + e.message); }
+}
+
+// ══════════════════════════════════════════════
+//  CSV Parsing — META
+// ══════════════════════════════════════════════
+function parseMeta(text) {
+  const lines = text.replace(/^\uFEFF/, '').trim().split('\n');
+  // Find header row
+  let headerIdx = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].includes('캠페인') || lines[i].toLowerCase().includes('campaign')) { headerIdx = i; break; }
+  }
+  const headers = parseCSVRow(lines[headerIdx]);
+  const rows = [];
+  for (let i = headerIdx+1; i < lines.length; i++) {
+    const vals = parseCSVRow(lines[i]);
+    if (vals.length < 3) continue;
+    const r = {};
+    headers.forEach((h,idx) => r[h.trim()] = (vals[idx]||'').trim());
+    const campaign = r['캠페인 이름'] || r['캠페인이름'] || r['campaign_name'] || '';
+    const date = r['일'] || r['date'] || r['날짜'] || '';
+    if (!campaign || !date || campaign.startsWith('--')) continue;
+    rows.push({
+      date:          date,
+      campaign:      campaign,
+      spend:         numClean(r['지출 금액 (KRW)'] || r['지출금액'] || r['spend'] || 0),
+      impressions:   numClean(r['노출'] || r['impressions'] || 0),
+      reach:         numClean(r['도달'] || r['reach'] || 0),
+      clicks:        numClean(r['링크 클릭'] || r['clicks'] || 0),
+      registrations: numClean(r['등록 완료'] || r['등록완료'] || 0),
+      trials:        numClean(r['체험판 시작'] || r['체험판시작'] || 0),
+      installs:      numClean(r['앱 설치'] || r['앱설치'] || 0),
+      purchases:     numClean(r['구매'] || 0),
+    });
+  }
+  return rows;
+}
+
+// ══════════════════════════════════════════════
+//  CSV Parsing — Google
+// ══════════════════════════════════════════════
+function parseGoogle(text) {
+  const lines = text.replace(/^\uFEFF/, '').trim().split('\n');
+  // Find actual header row (contains '일' or 'date' and '캠페인')
+  let headerIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if ((l.includes('캠페인') || l.toLowerCase().includes('campaign')) && (l.includes('비용') || l.includes('노출') || l.toLowerCase().includes('cost'))) {
+      headerIdx = i; break;
+    }
+  }
+  if (headerIdx === -1) { console.warn('Google CSV 헤더를 못 찾음'); return []; }
+  const headers = parseCSVRow(lines[headerIdx]);
+  const rows = [];
+  for (let i = headerIdx+1; i < lines.length; i++) {
+    const vals = parseCSVRow(lines[i]);
+    if (vals.length < 3) continue;
+    const r = {};
+    headers.forEach((h,idx) => r[h.trim()] = (vals[idx]||'').trim());
+    const campaign = r['캠페인'] || r['campaign'] || '';
+    const date = r['일'] || r['날짜'] || r['date'] || '';
+    // Filter summary rows
+    if (!campaign || !date || campaign.includes('전체:') || campaign === '--' || date === '--' || date === '') continue;
+    // Filter rows with 0 spend
+    const spend = numClean(r['비용'] || r['cost'] || r['비용(원)'] || 0);
+    if (spend === 0) continue;
+    rows.push({
+      date:          date,
+      campaign:      campaign,
+      spend:         spend,
+      impressions:   numClean(r['노출수'] || r['impressions'] || 0),
+      clicks:        numClean(r['클릭수'] || r['clicks'] || 0),
+      registrations: numClean(r['회원가입'] || 0),
+      installs:      numClean(r['설치'] || 0),
+      purchases:     numClean(r['구매'] || 0),
+      conversions:   numClean(r['전환수'] || 0),
+      cpConv:        numClean(r['전환당비용'] || 0),
+    });
+  }
+  return rows;
+}
+
+function parseCSVRow(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+    else { cur += c; }
+  }
+  result.push(cur);
+  return result;
+}
+
+// ══════════════════════════════════════════════
+//  File Handling
+// ══════════════════════════════════════════════
+function dragOver(e, id) { e.preventDefault(); $(id).classList.add('drag'); }
+function dragLeave(id) { $(id).classList.remove('drag'); }
+function dropFile(e, platform) {
+  e.preventDefault();
+  const id = platform === 'meta' ? 'metaDrop' : 'googleDrop';
+  $(id).classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file, platform);
+}
+function handleFile(input, platform) {
+  if (input.files[0]) processFile(input.files[0], platform);
+}
+
+function processFile(file, platform) {
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const rows = platform === 'meta' ? parseMeta(e.target.result) : parseGoogle(e.target.result);
+      if (!rows.length) throw new Error('파싱된 데이터 없음');
+
+      // Merge: remove existing rows for dates in this file, then add new ones
+      const dates = new Set(rows.map(r => r.date));
+      STATE.data[platform] = [
+        ...STATE.data[platform].filter(r => !dates.has(r.date)),
+        ...rows
+      ];
+
+      await saveBin();
+      const st = $(platform+'Status');
+      st.className = 'upload-status ok';
+      st.textContent = `✓ ${rows.length}행 로드 완료`;
+      $(platform+'Clear').style.display = 'inline';
+      $(platform+'Drop').classList.add('done');
+      renderAll();
+    } catch(err) {
+      const st = $(platform+'Status');
+      st.className = 'upload-status err';
+      st.textContent = '✕ 파싱 오류: ' + err.message;
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+async function clearUpload(platform) {
+  STATE.data[platform] = [];
+  await saveBin();
+  $(platform+'Status').textContent = '';
+  $(platform+'Clear').style.display = 'none';
+  $(platform+'Drop').classList.remove('done');
+  $(platform+'File').value = '';
+  renderAll();
+}
+
+// ══════════════════════════════════════════════
+//  Data Aggregation
+// ══════════════════════════════════════════════
+function getAdminDay(date) { return STATE.data.admin[date] || null; }
+
+function aggregateAdminRange(start, end) {
+  const agg = { revenue:0, purchases:0, registrations:0, couponDown:0, couponUsed:0 };
+  let hasData = false;
+  Object.entries(STATE.data.admin).forEach(([date, v]) => {
+    if (date >= start && date <= end) {
+      hasData = true;
+      agg.revenue       += v.revenue       || 0;
+      agg.purchases     += v.purchases     || 0;
+      agg.registrations += v.registrations || 0;
+      agg.couponDown    += v.couponDown    || 0;
+      agg.couponUsed    += v.couponUsed    || 0;
+    }
+  });
+  return hasData ? agg : null;
+}
+
+function getPlatformDay(platform, date) {
+  const rows = STATE.data[platform].filter(r => r.date === date);
+  return aggregateRows(rows);
+}
+
+function getPlatformRange(platform, start, end) {
+  const rows = STATE.data[platform].filter(r => r.date >= start && r.date <= end);
+  return aggregateRows(rows);
+}
+
+function aggregateRows(rows) {
+  if (!rows.length) return null;
+  const agg = { spend:0, impressions:0, clicks:0, registrations:0, installs:0, purchases:0, trials:0, conversions:0 };
+  rows.forEach(r => {
+    agg.spend        += r.spend || 0;
+    agg.impressions  += r.impressions || 0;
+    agg.clicks       += r.clicks || 0;
+    agg.registrations+= r.registrations || 0;
+    agg.installs     += r.installs || 0;
+    agg.purchases    += r.purchases || 0;
+    agg.trials       += r.trials || 0;
+    agg.conversions  += r.conversions || 0;
+  });
+  return agg;
+}
+
+function getCampaignsDay(platform, date) {
+  return STATE.data[platform].filter(r => r.date === date);
+}
+
+// ══════════════════════════════════════════════
+//  Chart Instances
+// ══════════════════════════════════════════════
+let chartTrend = null, chartSpend = null, chartCpa = null;
+
+const CHART_DEFAULTS = {
+  font: { family: "'Noto Sans KR', sans-serif", size: 11 },
+  color: '#8888aa',
+};
+
+function destroyChart(c) { if (c) { try { c.destroy(); } catch(e) {} } return null; }
+
+function getLast14Days(anchor) {
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(anchor + 'T00:00:00');
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  return days;
+}
+
+function getLast7Days(anchor) { return getLast14Days(anchor).slice(7); }
+
+function renderCharts() {
+  const d    = STATE.selectedDate;
+  const days14 = getLast14Days(d);
+  const days7  = days14.slice(7);
+
+  // ── Trend Chart (14일) ──
+  const trendLabels = days14.map(dd => dd.slice(5));
+  const spendData14 = days14.map(dd => {
+    const m = getPlatformRange('meta',   dd, dd);
+    const g = getPlatformRange('google', dd, dd);
+    return ((m?.spend||0) + (g?.spend||0)) / 10000; // 만원 단위
+  });
+  const roasData14 = days14.map(dd => {
+    const m = getPlatformRange('meta',   dd, dd);
+    const g = getPlatformRange('google', dd, dd);
+    const a = getAdminDay(dd);
+    const spend = (m?.spend||0) + (g?.spend||0);
+    return spend && a?.revenue ? +(a.revenue / spend).toFixed(2) : null;
+  });
+
+  chartTrend = destroyChart(chartTrend);
+  const ctxT = $('trendChart');
+  if (ctxT) {
+    chartTrend = new Chart(ctxT, {
+      data: {
+        labels: trendLabels,
+        datasets: [
+          {
+            type: 'bar', label: '광고비(만원)', data: spendData14,
+            backgroundColor: 'rgba(91,110,245,.15)', borderColor: 'rgba(91,110,245,.4)',
+            borderWidth: 1, borderRadius: 4, yAxisID: 'y',
+          },
+          {
+            type: 'line', label: 'ROAS', data: roasData14,
+            borderColor: '#d96b20', backgroundColor: 'rgba(217,107,32,.08)',
+            borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: '#d96b20',
+            tension: 0.35, fill: true, yAxisID: 'y2', spanGaps: true,
+          },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#4a4a6a', font: CHART_DEFAULTS.font, boxWidth: 12 } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.dataset.label === 'ROAS'
+                ? ` ROAS: ${ctx.parsed.y}x`
+                : ` 광고비: ${ctx.parsed.y.toFixed(0)}만원`
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#8888aa', font: {size:10} }, grid: { color: 'rgba(0,0,0,.04)' } },
+          y: { position:'left', ticks: { color: '#5b6ef5', font:{size:10}, callback: v => v+'만' }, grid: { color:'rgba(0,0,0,.04)' } },
+          y2: { position:'right', ticks: { color: '#d96b20', font:{size:10}, callback: v => v+'x' }, grid: { display:false } },
+        }
+      }
+    });
+  }
+
+  // ── Spend Bar Chart (7일) ──
+  const spendLabels = days7.map(dd => dd.slice(5));
+  const metaSpend7  = days7.map(dd => { const r = getPlatformRange('meta',   dd, dd); return Math.round((r?.spend||0)/10000); });
+  const gSpend7     = days7.map(dd => { const r = getPlatformRange('google', dd, dd); return Math.round((r?.spend||0)/10000); });
+
+  chartSpend = destroyChart(chartSpend);
+  const ctxS = $('spendChart');
+  if (ctxS) {
+    chartSpend = new Chart(ctxS, {
+      type: 'bar',
+      data: {
+        labels: spendLabels,
+        datasets: [
+          { label: 'META', data: metaSpend7, backgroundColor: 'rgba(0,112,224,.7)', borderRadius: 4 },
+          { label: 'Google', data: gSpend7,  backgroundColor: 'rgba(26,140,62,.7)',  borderRadius: 4 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#4a4a6a', font: CHART_DEFAULTS.font, boxWidth: 10 } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}만원` } }
+        },
+        scales: {
+          x: { ticks: { color: '#8888aa', font:{size:10} }, grid: { color:'rgba(0,0,0,.04)' } },
+          y: { ticks: { color: '#8888aa', font:{size:10}, callback: v => v+'만' }, grid: { color:'rgba(0,0,0,.04)' } },
+        }
+      }
+    });
+  }
+
+  // ── CPA Line Chart (7일) ──
+  const metaCpa7 = days7.map(dd => {
+    const r = getPlatformRange('meta', dd, dd);
+    return r?.spend && r?.registrations ? Math.round(r.spend/r.registrations) : null;
+  });
+  const gCpa7 = days7.map(dd => {
+    const r = getPlatformRange('google', dd, dd);
+    return r?.spend && r?.installs ? Math.round(r.spend/r.installs) : null;
+  });
+
+  chartCpa = destroyChart(chartCpa);
+  const ctxC = $('cpaChart');
+  if (ctxC) {
+    chartCpa = new Chart(ctxC, {
+      type: 'line',
+      data: {
+        labels: spendLabels,
+        datasets: [
+          {
+            label: 'META 등록 CPA', data: metaCpa7,
+            borderColor: '#0070e0', backgroundColor: 'rgba(0,112,224,.08)',
+            borderWidth: 2.5, pointRadius: 3, tension: 0.35, fill: true, spanGaps: true,
+          },
+          {
+            label: 'Google 설치 CPA', data: gCpa7,
+            borderColor: '#1a8c3e', backgroundColor: 'rgba(26,140,62,.08)',
+            borderWidth: 2.5, pointRadius: 3, tension: 0.35, fill: true, spanGaps: true,
+          },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#4a4a6a', font: CHART_DEFAULTS.font, boxWidth: 10 } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ₩${ctx.parsed.y?.toLocaleString()}` } }
+        },
+        scales: {
+          x: { ticks: { color: '#8888aa', font:{size:10} }, grid: { color:'rgba(0,0,0,.04)' } },
+          y: { ticks: { color: '#8888aa', font:{size:10}, callback: v => (v/1000).toFixed(0)+'천' }, grid: { color:'rgba(0,0,0,.04)' } },
+        }
+      }
+    });
+  }
+
+  // ── KPI 전일 대비 비교 패널 ──
+  renderKpiCompare();
+}
+
+function renderKpiCompare() {
+  const d  = STATE.selectedDate;
+  const d1 = prevDate(d);
+  const meta   = getPlatformRange('meta',   d,  d);
+  const meta1  = getPlatformRange('meta',   d1, d1);
+  const google = getPlatformRange('google', d,  d);
+  const google1= getPlatformRange('google', d1, d1);
+
+  function kpiDelta(cur, prev) {
+    if (!cur || !prev || prev === 0) return null;
+    return ((cur - prev) / Math.abs(prev)) * 100;
+  }
+  function deltaTag(d, inverse=false) {
+    if (d === null || d === undefined) return '';
+    const good = inverse ? d < 0 : d > 0;
+    const color = good ? '#16a05a' : '#d94040';
+    const bg    = good ? 'rgba(22,160,90,.1)' : 'rgba(217,64,64,.1)';
+    const sign  = d > 0 ? '▲' : '▼';
+    return `<span class="kpi-delta-inline" style="color:${color};background:${bg}">${sign}${Math.abs(d).toFixed(1)}%</span>`;
+  }
+
+  function metaCpaReg()  { return meta?.spend  && meta?.registrations  ? meta.spend  / meta.registrations  : null; }
+  function metaCpaReg1() { return meta1?.spend && meta1?.registrations ? meta1.spend / meta1.registrations : null; }
+  function gCpaIns()     { return google?.spend  && google?.installs    ? google.spend  / google.installs    : null; }
+  function gCpaIns1()    { return google1?.spend && google1?.installs   ? google1.spend / google1.installs   : null; }
+
+  const rows = {
+    meta: [
+      { label:'광고비',      cur: meta?.spend,        prev: meta1?.spend,        fmt: v => `₩${won(v)}`,   inv: true  },
+      { label:'등록완료',    cur: meta?.registrations, prev: meta1?.registrations, fmt: v => `${num(v)}건`, inv: false },
+      { label:'앱설치',      cur: meta?.installs,      prev: meta1?.installs,      fmt: v => `${num(v)}건`, inv: false },
+      { label:'구매',        cur: meta?.purchases,     prev: meta1?.purchases,     fmt: v => `${num(v)}건`, inv: false },
+      { label:'등록 CPA',    cur: metaCpaReg(),        prev: metaCpaReg1(),        fmt: v => `₩${won(v)}`,  inv: true  },
+    ],
+    google: [
+      { label:'광고비',      cur: google?.spend,        prev: google1?.spend,        fmt: v => `₩${won(v)}`,   inv: true  },
+      { label:'회원가입',    cur: google?.registrations, prev: google1?.registrations, fmt: v => `${num(v)}건`, inv: false },
+      { label:'설치',        cur: google?.installs,      prev: google1?.installs,      fmt: v => `${num(v)}건`, inv: false },
+      { label:'구매',        cur: google?.purchases,     prev: google1?.purchases,     fmt: v => `${num(v)}건`, inv: false },
+      { label:'설치 CPA',    cur: gCpaIns(),             prev: gCpaIns1(),             fmt: v => `₩${won(v)}`,  inv: true  },
+    ]
+  };
+
+  function colHtml(platform, color, label, data) {
+    const rowsHtml = data.map(r => {
+      const d = kpiDelta(r.cur, r.prev);
+      const val = r.cur != null ? r.fmt(r.cur) : '-';
+      return `<div class="kpi-row">
+        <span class="kpi-metric">${r.label}</span>
+        <span class="kpi-val">${val}${d !== null ? deltaTag(d, r.inv) : ''}</span>
+      </div>`;
+    }).join('');
+    return `<div class="kpi-col">
+      <div class="kpi-platform" style="color:${color}">${label}</div>
+      ${rowsHtml}
+    </div>`;
+  }
+
+  $('kpiCompare').innerHTML =
+    colHtml('meta',   '#0070e0', '📘 META',        rows.meta) +
+    colHtml('google', '#1a8c3e', '📗 Google Ads', rows.google);
+}
+
+// ══════════════════════════════════════════════
+//  Render All
+// ══════════════════════════════════════════════
+function renderAll() {
+  loadAdminInputs();
+  const d   = STATE.selectedDate;
+  const period = STATE.period;
+  const cur  = getPeriodRange(d, period);
+  const prev = getPrevPeriodRange(d, period);
+
+  const periodLabel = period === 'daily' ? `어제 (${d})` : period === 'weekly' ? `이번 주 (${cur.start} ~ ${cur.end})` : `이번 달 (${cur.start.slice(0,7)})`;
+  document.querySelectorAll('.period-label').forEach(el => el.textContent = periodLabel);
+
+  const admin  = period === 'daily' ? getAdminDay(d) : aggregateAdminRange(cur.start, cur.end);
+  const admin1 = period === 'daily' ? getAdminDay(prevDate(d)) : aggregateAdminRange(prev.start, prev.end);
+  const meta   = getPlatformRange('meta',   cur.start,  cur.end);
+  const meta1  = getPlatformRange('meta',   prev.start, prev.end);
+  const google = getPlatformRange('google', cur.start,  cur.end);
+  const google1= getPlatformRange('google', prev.start, prev.end);
+
+  renderAdminCards(admin, admin1);
+  renderAdCards(meta, meta1, google, google1);
+  renderConnector(admin, meta, google, meta1, google1, admin1);
+  renderAlerts(meta, meta1, google, google1);
+  renderCharts();
+  renderDrill(STATE.currentDrillTab, cur.start, cur.end);
+}
+
+// ── Admin Cards ──
+function renderAdminCards(a, a1) {
+  if (!a) { $('adminCards').innerHTML = `<div class="no-data" style="grid-column:1/-1;padding:20px"><div class="no-data-text">위 입력칸에 어드민 데이터를 입력하고 저장하세요</div></div>`; return; }
+  const cards = [
+    { label:'실제 매출', value:`₩${won(a.revenue)}`, sub: a1 ? deltaEl(delta(a.revenue, a1.revenue), false) : '', color:'#f5c842' },
+    { label:'실제 구매', value:`${num(a.purchases)}건`, sub: a1 ? deltaEl(delta(a.purchases, a1.purchases), false) : '', color:'#22d47a' },
+    { label:'신규 회원가입', value:`${num(a.registrations)}명`, sub: a1 ? deltaEl(delta(a.registrations, a1.registrations), false) : '', color:'#5b6ef5' },
+    { label:'쿠폰 다운로드', value:`${num(a.couponDown)}건`, sub: a1 ? deltaEl(delta(a.couponDown, a1.couponDown), false) : '', color:'#8b9aff' },
+    { label:'쿠폰 사용/결제', value:`${num(a.couponUsed)}건`, sub: a1 ? deltaEl(delta(a.couponUsed, a1.couponUsed), false) : '', color:'#06b6d4' },
+  ];
+  $('adminCards').innerHTML = cards.map(c => `
+    <div class="card" style="--card-color:${c.color}">
+      <div class="card-label">${c.label}</div>
+      <div class="card-value">${c.value}</div>
+      <div>${c.sub}</div>
+    </div>`).join('');
+}
+
+// ── Ad Cards ──
+function renderAdCards(meta, meta1, google, google1) {
+  const cards = [];
+  if (meta) {
+    const cpa_reg  = meta.spend && meta.registrations ? meta.spend / meta.registrations : 0;
+    const cpa_reg1 = meta1?.spend && meta1?.registrations ? meta1.spend / meta1.registrations : 0;
+    const cpa_pur  = meta.spend && meta.purchases ? meta.spend / meta.purchases : 0;
+    const cpa_pur1 = meta1?.spend && meta1?.purchases ? meta1.spend / meta1.purchases : 0;
+    cards.push(
+      { label:'META 광고비', value:`₩${won(meta.spend)}`, sub: meta1 ? deltaEl(delta(meta.spend,meta1.spend),true) : '', color:'var(--meta)' },
+      { label:'META 등록완료 CPA', value:`₩${won(cpa_reg)}`, sub: meta1 && cpa_reg1 ? deltaEl(delta(cpa_reg, cpa_reg1), true) : '', color:'var(--meta)' },
+      { label:'META 구매 CPA', value: cpa_pur ? `₩${won(cpa_pur)}` : '-', sub: meta1 && cpa_pur1 ? deltaEl(delta(cpa_pur, cpa_pur1), true) : '', color:'var(--meta)' },
+    );
+  }
+  if (google) {
+    const cpa_ins  = google.spend && google.installs ? google.spend / google.installs : 0;
+    const cpa_ins1 = google1?.spend && google1?.installs ? google1.spend / google1.installs : 0;
+    const cpa_reg  = google.spend && google.registrations ? google.spend / google.registrations : 0;
+    const cpa_reg1 = google1?.spend && google1?.registrations ? google1.spend / google1.registrations : 0;
+    cards.push(
+      { label:'Google 광고비', value:`₩${won(google.spend)}`, sub: google1 ? deltaEl(delta(google.spend,google1.spend),true) : '', color:'var(--google)' },
+      { label:'Google 설치 CPA', value:`₩${won(cpa_ins)}`, sub: google1 && cpa_ins1 ? deltaEl(delta(cpa_ins, cpa_ins1), true) : '', color:'var(--google)' },
+      { label:'Google 가입 CPA', value: cpa_reg ? `₩${won(cpa_reg)}` : '-', sub: google1 && cpa_reg1 ? deltaEl(delta(cpa_reg, cpa_reg1), true) : '', color:'var(--google)' },
+    );
+  }
+  if (!meta && !google) {
+    $('adCards').innerHTML = `<div style="color:var(--text3);font-size:12px;padding:8px 0">CSV를 업로드하면 광고 성과가 표시됩니다</div>`;
+    return;
+  }
+  $('adCards').innerHTML = cards.map(c => `
+    <div class="card" style="--card-color:${c.color}">
+      <div class="card-label">${c.label}</div>
+      <div class="card-value">${c.value}</div>
+      <div>${c.sub}</div>
+    </div>`).join('');
+}
+
+// ── Connector ──
+function renderConnector(admin, meta, google, meta1, google1, admin1) {
+  const totalSpend = (meta?.spend || 0) + (google?.spend || 0);
+  const totalSpend1= (meta1?.spend || 0) + (google1?.spend || 0);
+  const revenue    = admin?.revenue || 0;
+  const revenue1   = admin1?.revenue || 0;
+  const roas       = totalSpend ? revenue / totalSpend : 0;
+  const roas1      = totalSpend1 ? revenue1 / totalSpend1 : 0;
+  const adPurchases= (meta?.purchases || 0) + (google?.purchases || 0);
+  const realPur    = admin?.purchases || 0;
+  const diff       = realPur - adPurchases;
+
+  const cards = [
+    {
+      label: '통합 ROAS',
+      value: roas ? x(roas) : '-',
+      sub: `실매출 ÷ 총광고비 (₩${won(totalSpend)})`,
+      delta: roas && roas1 ? deltaEl(delta(roas,roas1), false) : '',
+      color: '#f5c842'
+    },
+    {
+      label: '총 광고비',
+      value: totalSpend ? `₩${won(totalSpend)}` : '-',
+      sub: `META ${won(meta?.spend||0)} + Google ${won(google?.spend||0)}`,
+      delta: totalSpend1 ? deltaEl(delta(totalSpend,totalSpend1),true) : '',
+      color: '#5b6ef5'
+    },
+    {
+      label: '광고 전환 구매',
+      value: `${adPurchases}건`,
+      sub: realPur ? `어드민 실제: ${realPur}건 (차이 ${diff > 0 ? '+' : ''}${diff}건)` : '어드민 미입력',
+      delta: '',
+      color: '#22d47a'
+    },
+  ];
+  $('connectorCards').innerHTML = cards.map(c => `
+    <div class="card" style="--card-color:${c.color}">
+      <div class="card-label">${c.label}</div>
+      <div class="card-value">${c.value}</div>
+      <div class="card-sub">${c.sub}</div>
+      <div>${c.delta}</div>
+    </div>`).join('');
+}
+
+// ── Alerts ──
+function renderAlerts(meta, meta1, google, google1) {
+  const alerts = [];
+
+  function checkCPA(name, cur, prev, metric, label) {
+    const cpa  = cur?.spend  && cur[metric]  ? cur.spend  / cur[metric]  : null;
+    const cpa1 = prev?.spend && prev[metric] ? prev.spend / prev[metric] : null;
+    if (!cpa || !cpa1) return;
+    const d = delta(cpa, cpa1);
+    if (d > 50)  alerts.push({ type:'danger', msg:`${name} ${label} CPA가 전날 대비 ${d.toFixed(0)}% 급등 (₩${won(cpa1)} → ₩${won(cpa)})` });
+    else if (d > 30) alerts.push({ type:'warn', msg:`${name} ${label} CPA 전날 대비 ${d.toFixed(0)}% 상승 (₩${won(cpa1)} → ₩${won(cpa)})` });
+  }
+
+  function checkSpend(name, cur, prev) {
+    if (!cur?.spend || !prev?.spend) return;
+    const d = delta(cur.spend, prev.spend);
+    if (d < -40) alerts.push({ type:'warn', msg:`${name} 광고비가 전날 대비 ${Math.abs(d).toFixed(0)}% 감소 — 예산 소진 확인 필요` });
+    if (d >  80) alerts.push({ type:'warn', msg:`${name} 광고비가 전날 대비 ${d.toFixed(0)}% 급증 — 의도된 증액인지 확인` });
+  }
+
+  checkCPA('META', meta, meta1, 'registrations', '등록완료');
+  checkCPA('META', meta, meta1, 'purchases', '구매');
+  checkCPA('Google', google, google1, 'installs', '설치');
+  checkCPA('Google', google, google1, 'registrations', '가입');
+  checkSpend('META', meta, meta1);
+  checkSpend('Google', google, google1);
+
+  const list = $('alertList');
+  if (!meta && !google) {
+    list.innerHTML = `<div class="alert-empty">CSV 업로드 후 이상감지가 활성화됩니다</div>`;
+    return;
+  }
+  if (!alerts.length) {
+    list.innerHTML = `<div class="alert-ok">✓ 전날 대비 이상 없음</div>`;
+    return;
+  }
+  list.innerHTML = alerts.map(a => `<div class="alert-item alert-${a.type}">${a.msg}</div>`).join('');
+}
+
+function showDrill(tab, el) {
+  STATE.currentDrillTab = tab;
+  document.querySelectorAll('.drill-tab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const cur = getPeriodRange(STATE.selectedDate, STATE.period);
+  renderDrill(tab, cur.start, cur.end);
+}
+
+function getCampaignsRange(platform, start, end) {
+  const rows = STATE.data[platform].filter(r => r.date >= start && r.date <= end);
+  // Aggregate by campaign
+  const map = {};
+  rows.forEach(r => {
+    if (!map[r.campaign]) map[r.campaign] = { campaign: r.campaign, spend:0, impressions:0, clicks:0, registrations:0, installs:0, purchases:0, trials:0 };
+    const m = map[r.campaign];
+    m.spend        += r.spend || 0;
+    m.impressions  += r.impressions || 0;
+    m.clicks       += r.clicks || 0;
+    m.registrations+= r.registrations || 0;
+    m.installs     += r.installs || 0;
+    m.purchases    += r.purchases || 0;
+    m.trials       += r.trials || 0;
+  });
+  return Object.values(map);
+}
+
+function renderDrill(tab, start, end) {
+  const rows = getCampaignsRange(tab, start, end);
+  const periodLabel = STATE.period === 'daily' ? '전날' : STATE.period === 'weekly' ? '전주' : '전월';
+
+  if (tab === 'meta') {
+    $('drillHead').innerHTML = `<tr>
+      <th>캠페인</th><th>광고비</th><th>노출</th><th>클릭</th>
+      <th>등록완료</th><th>등록완료 CPA</th><th>앱설치</th><th>구매</th><th>구매 CPA</th>
+    </tr>`;
+    if (!rows.length) { $('drillBody').innerHTML = `<tr><td colspan="9" class="tbl-empty">이 기간의 META 데이터가 없습니다</td></tr>`; return; }
+
+    const prev = getPrevPeriodRange(STATE.selectedDate, STATE.period);
+    const prevRows = getCampaignsRange(tab, prev.start, prev.end);
+    const prevMap = {};
+    prevRows.forEach(r => prevMap[r.campaign] = r);
+
+    $('drillBody').innerHTML = [...rows].sort((a,b)=>b.spend-a.spend).map(r => {
+      const cpa_reg = r.spend && r.registrations ? r.spend / r.registrations : 0;
+      const cpa_pur = r.spend && r.purchases ? r.spend / r.purchases : 0;
+      const p = prevMap[r.campaign];
+      const p_cpa_reg = p?.spend && p?.registrations ? p.spend / p.registrations : 0;
+      const d_cpa = cpa_reg && p_cpa_reg ? delta(cpa_reg, p_cpa_reg) : null;
+      const warnCls = d_cpa !== null && d_cpa > 50 ? 'tbl-danger' : d_cpa !== null && d_cpa > 30 ? 'tbl-warn' : '';
+      const badge = d_cpa !== null && d_cpa > 50 ? `<span class="badge-danger">▲${d_cpa.toFixed(0)}%</span>` : d_cpa !== null && d_cpa > 30 ? `<span class="badge-warn">▲${d_cpa.toFixed(0)}%</span>` : '';
+      return `<tr>
+        <td title="${r.campaign}">${r.campaign}</td>
+        <td>₩${won(r.spend)}</td>
+        <td>${num(r.impressions)}</td>
+        <td>${num(r.clicks)}</td>
+        <td>${num(r.registrations)}</td>
+        <td class="${warnCls}">₩${won(cpa_reg)}${badge}</td>
+        <td>${num(r.installs)}</td>
+        <td>${num(r.purchases)}</td>
+        <td>${cpa_pur ? '₩'+won(cpa_pur) : '-'}</td>
+      </tr>`;
+    }).join('');
+
+  } else {
+    $('drillHead').innerHTML = `<tr>
+      <th>캠페인</th><th>광고비</th><th>노출</th><th>클릭</th>
+      <th>회원가입</th><th>가입 CPA</th><th>설치</th><th>설치 CPA</th><th>구매</th>
+    </tr>`;
+    if (!rows.length) { $('drillBody').innerHTML = `<tr><td colspan="9" class="tbl-empty">이 기간의 Google 데이터가 없습니다</td></tr>`; return; }
+
+    const prev = getPrevPeriodRange(STATE.selectedDate, STATE.period);
+    const prevRows = getCampaignsRange(tab, prev.start, prev.end);
+    const prevMap = {};
+    prevRows.forEach(r => prevMap[r.campaign] = r);
+
+    $('drillBody').innerHTML = [...rows].sort((a,b)=>b.spend-a.spend).map(r => {
+      const cpa_ins = r.spend && r.installs ? r.spend / r.installs : 0;
+      const cpa_reg = r.spend && r.registrations ? r.spend / r.registrations : 0;
+      const p = prevMap[r.campaign];
+      const p_cpa_ins = p?.spend && p?.installs ? p.spend / p.installs : 0;
+      const d_cpa = cpa_ins && p_cpa_ins ? delta(cpa_ins, p_cpa_ins) : null;
+      const warnCls = d_cpa !== null && d_cpa > 50 ? 'tbl-danger' : d_cpa !== null && d_cpa > 30 ? 'tbl-warn' : '';
+      const badge = d_cpa !== null && d_cpa > 50 ? `<span class="badge-danger">▲${d_cpa.toFixed(0)}%</span>` : d_cpa !== null && d_cpa > 30 ? `<span class="badge-warn">▲${d_cpa.toFixed(0)}%</span>` : '';
+      return `<tr>
+        <td title="${r.campaign}">${r.campaign}</td>
+        <td>₩${won(r.spend)}</td>
+        <td>${num(r.impressions)}</td>
+        <td>${num(r.clicks)}</td>
+        <td>${num(r.registrations)}</td>
+        <td class="${warnCls}">${cpa_reg ? '₩'+won(cpa_reg) : '-'}${badge}</td>
+        <td>${num(r.installs)}</td>
+        <td class="${warnCls}">₩${won(cpa_ins)}${badge}</td>
+        <td>${num(r.purchases)}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+</script>
+</body>
+</html>
