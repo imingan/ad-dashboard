@@ -409,50 +409,131 @@ tbody td:first-child { text-align: left; color: var(--text); font-family: 'Noto 
     </div>
   </div>
 
-  <!-- ① 비즈니스 성과 (어드민 입력) -->
+  <!-- ① 트렌드 & 비교 차트 (최상단) -->
   <div class="section">
     <div class="section-header">
-      <div class="section-title">레이어 1 — 비즈니스 성과 (어드민 입력)</div>
-      <span class="period-label" style="font-size:12px;color:var(--text3)"></span>
+      <div class="section-title">트렌드 & 비교 차트</div>
+      <span style="font-size:11px;color:var(--text3)">최근 14일 기준</span>
     </div>
-    <div class="cards-row" id="adminCards" style="margin-bottom:14px"></div>
-    <div class="admin-panel">
-      <div class="admin-grid">
-        <div class="admin-field">
-          <label>매출 (원)</label>
-          <input class="admin-input" id="inp_revenue" type="number" placeholder="42000000"/>
-        </div>
-        <div class="admin-field">
-          <label>구매 (건)</label>
-          <input class="admin-input" id="inp_purchases" type="number" placeholder="45"/>
-        </div>
-        <div class="admin-field">
-          <label>신규 회원가입</label>
-          <input class="admin-input" id="inp_registrations" type="number" placeholder="130"/>
-        </div>
-        <div class="admin-field">
-          <label>쿠폰 다운로드</label>
-          <input class="admin-input" id="inp_couponDown" type="number" placeholder="280"/>
-        </div>
-        <div class="admin-field">
-          <label>쿠폰 사용/결제</label>
-          <input class="admin-input" id="inp_couponUsed" type="number" placeholder="61"/>
+
+    <div class="chart-card-full">
+      <div class="chart-title">📈 광고비 & ROAS 추이</div>
+      <div class="chart-sub">일별 총 광고비(META+Google)와 통합 ROAS 흐름</div>
+      <div class="chart-wrap" style="height:200px">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="chart-title">💰 매체별 광고비 비교</div>
+        <div class="chart-sub">최근 7일 META vs Google 일별 광고비</div>
+        <div class="chart-wrap" style="height:180px">
+          <canvas id="spendChart"></canvas>
         </div>
       </div>
-      <div class="admin-actions">
-        <button class="btn btn-primary" onclick="saveAdmin()" style="font-size:12px;padding:8px 18px">💾 저장</button>
-        <span class="save-msg" id="saveMsg">✓ 저장되었어요</span>
-        <span style="font-size:11px;color:var(--text3);margin-left:auto">데이터는 JSONBin에 자동 저장돼요</span>
+      <div class="chart-card">
+        <div class="chart-title">🎯 매체별 CPA 비교</div>
+        <div class="chart-sub">등록완료/설치 기준 CPA 추이</div>
+        <div class="chart-wrap" style="height:180px">
+          <canvas id="cpaChart"></canvas>
+        </div>
       </div>
+    </div>
+
+    <div class="chart-card-full" style="padding:0;overflow:hidden">
+      <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border)">
+        <div class="chart-title">📊 전일 대비 매체별 핵심 지표</div>
+      </div>
+      <div class="kpi-compare" id="kpiCompare"></div>
     </div>
   </div>
 
   <hr class="divider"/>
 
-  <!-- ② 광고 성과 (CSV 업로드) -->
+  <!-- ② 비즈니스 성과 (어드민 입력 + CSV) -->
   <div class="section">
     <div class="section-header">
-      <div class="section-title">레이어 2 — 광고 성과 (CSV 업로드)</div>
+      <div class="section-title">비즈니스 성과 (어드민 데이터)</div>
+      <span class="period-label" style="font-size:12px;color:var(--text3)"></span>
+    </div>
+    <div class="cards-row" id="adminCards" style="margin-bottom:14px"></div>
+    <div class="admin-panel">
+
+      <!-- 탭: 직접입력 / CSV -->
+      <div style="display:flex;gap:4px;margin-bottom:16px;background:var(--bg3);border-radius:8px;padding:3px;width:fit-content">
+        <button class="admin-tab active" id="tabManual" onclick="switchAdminTab('manual')" style="padding:5px 16px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;background:var(--accent);color:#fff;transition:all .15s">✏️ 직접 입력</button>
+        <button class="admin-tab" id="tabCsv" onclick="switchAdminTab('csv')" style="padding:5px 16px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;background:transparent;color:var(--text3);transition:all .15s">📂 CSV 업로드</button>
+      </div>
+
+      <!-- 직접 입력 -->
+      <div id="panelManual">
+        <div class="admin-grid">
+          <div class="admin-field">
+            <label>매출 (원)</label>
+            <input class="admin-input" id="inp_revenue" type="number" placeholder="42000000"/>
+          </div>
+          <div class="admin-field">
+            <label>구매 (건)</label>
+            <input class="admin-input" id="inp_purchases" type="number" placeholder="45"/>
+          </div>
+          <div class="admin-field">
+            <label>신규 회원가입</label>
+            <input class="admin-input" id="inp_registrations" type="number" placeholder="130"/>
+          </div>
+          <div class="admin-field">
+            <label>쿠폰 다운로드</label>
+            <input class="admin-input" id="inp_couponDown" type="number" placeholder="280"/>
+          </div>
+          <div class="admin-field">
+            <label>쿠폰 사용/결제</label>
+            <input class="admin-input" id="inp_couponUsed" type="number" placeholder="61"/>
+          </div>
+        </div>
+        <div class="admin-actions">
+          <button class="btn btn-primary" onclick="saveAdmin()" style="font-size:12px;padding:8px 18px">💾 저장</button>
+          <span class="save-msg" id="saveMsg">✓ 저장되었어요</span>
+          <span style="font-size:11px;color:var(--text3);margin-left:auto">데이터는 JSONBin에 자동 저장돼요</span>
+        </div>
+      </div>
+
+      <!-- CSV 업로드 -->
+      <div id="panelCsv" style="display:none">
+        <div class="upload-card" id="adminDrop"
+          ondragover="dragOver(event,'adminDrop')" ondragleave="dragLeave('adminDrop')" ondrop="dropFile(event,'admin')"
+          style="margin-bottom:14px">
+          <div class="upload-platform">
+            <div class="platform-dot" style="background:var(--accent)"></div>
+            <div class="platform-name" style="color:var(--accent)">어드민 데이터 CSV</div>
+          </div>
+          <div class="upload-hint" style="font-size:12px;color:var(--text3);margin-bottom:10px">
+            CSV 형식: <span style="font-family:'DM Mono',monospace;font-size:11px;background:var(--bg3);padding:2px 6px;border-radius:4px">날짜, 매출, 구매, 회원가입, 쿠폰다운, 쿠폰사용</span><br/>
+            예시: <span style="font-family:'DM Mono',monospace;font-size:11px">2026-03-01, 42000000, 45, 130, 280, 61</span>
+          </div>
+          <div class="upload-btn-wrap">
+            <button class="btn btn-ghost" onclick="document.getElementById('adminFile').click()" style="font-size:12px;padding:6px 14px">파일 선택</button>
+            <span class="upload-status" id="adminStatus"></span>
+            <button class="upload-clear" id="adminClear" onclick="clearUpload('admin')" style="display:none">✕ 초기화</button>
+          </div>
+          <input type="file" class="upload-input" id="adminFile" accept=".csv" onchange="handleFile(this,'admin')"/>
+        </div>
+
+        <!-- CSV 템플릿 다운로드 -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="downloadAdminTemplate()" style="font-size:12px;padding:6px 14px">⬇ CSV 템플릿 다운로드</button>
+          <span style="font-size:11px;color:var(--text3)">템플릿에 숫자 채워서 업로드하면 돼요</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- ③ 광고 성과 (CSV 업로드) -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">광고 성과 (CSV 업로드)</div>
       <span style="font-size:11px;color:var(--text3)">같은 날짜는 최신 데이터로 자동 덮어쓰기</span>
     </div>
     <div class="upload-row" style="margin-bottom:16px">
@@ -485,16 +566,15 @@ tbody td:first-child { text-align: left; color: var(--text); font-family: 'Noto 
         <input type="file" class="upload-input" id="googleFile" accept=".csv" onchange="handleFile(this,'google')"/>
       </div>
     </div>
-    <!-- Ad summary cards -->
     <div class="cards-row" id="adCards"></div>
   </div>
 
   <hr class="divider"/>
 
-  <!-- ③ 연결고리 -->
+  <!-- ④ 연결고리 -->
   <div class="section">
     <div class="section-header">
-      <div class="section-title">레이어 3 — 연결고리 & 이상감지</div>
+      <div class="section-title">연결고리 & 이상감지</div>
     </div>
     <div class="connector-grid">
       <div class="connector-main" id="connectorCards"></div>
@@ -507,57 +587,10 @@ tbody td:first-child { text-align: left; color: var(--text); font-family: 'Noto 
 
   <hr class="divider"/>
 
-  <!-- ⑤ 차트 & 비주얼 분석 -->
+  <!-- ⑤ 캠페인 드릴다운 -->
   <div class="section">
     <div class="section-header">
-      <div class="section-title">레이어 5 — 트렌드 & 비교 차트</div>
-      <span style="font-size:11px;color:var(--text3)">최근 14일 기준</span>
-    </div>
-
-    <!-- 전체 트렌드 라인 -->
-    <div class="chart-card-full">
-      <div class="chart-title">📈 광고비 & ROAS 추이</div>
-      <div class="chart-sub">일별 총 광고비(META+Google)와 통합 ROAS 흐름</div>
-      <div class="chart-wrap" style="height:200px">
-        <canvas id="trendChart"></canvas>
-      </div>
-    </div>
-
-    <div class="chart-grid">
-      <!-- META vs Google 광고비 비교 -->
-      <div class="chart-card">
-        <div class="chart-title">💰 매체별 광고비 비교</div>
-        <div class="chart-sub">최근 7일 META vs Google 일별 광고비</div>
-        <div class="chart-wrap" style="height:180px">
-          <canvas id="spendChart"></canvas>
-        </div>
-      </div>
-
-      <!-- CPA 비교 -->
-      <div class="chart-card">
-        <div class="chart-title">🎯 매체별 CPA 비교</div>
-        <div class="chart-sub">등록완료/설치 기준 CPA 추이</div>
-        <div class="chart-wrap" style="height:180px">
-          <canvas id="cpaChart"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <!-- 전일 대비 KPI 비교 패널 -->
-    <div class="chart-card-full" style="padding:0;overflow:hidden">
-      <div style="padding:16px 20px 12px;border-bottom:1px solid var(--border)">
-        <div class="chart-title">📊 전일 대비 매체별 핵심 지표</div>
-      </div>
-      <div class="kpi-compare" id="kpiCompare"></div>
-    </div>
-  </div>
-
-  <hr class="divider"/>
-
-  <!-- ④ 캠페인 드릴다운 -->
-  <div class="section">
-    <div class="section-header">
-      <div class="section-title">레이어 4 — 캠페인 드릴다운</div>
+      <div class="section-title">캠페인 드릴다운</div>
     </div>
     <div class="drill-tabs">
       <button class="drill-tab active" onclick="showDrill('meta',this)">META 캠페인</button>
@@ -1017,35 +1050,50 @@ function processFile(file, platform) {
   const reader = new FileReader();
   reader.onload = async e => {
     try {
-      const rows = platform === 'meta' ? parseMeta(e.target.result) : parseGoogle(e.target.result);
-      if (!rows.length) throw new Error('파싱된 데이터 없음');
+      let rows, count;
 
-      // Merge: remove existing rows for dates in this file, then add new ones
-      const dates = new Set(rows.map(r => r.date));
-      STATE.data[platform] = [
-        ...STATE.data[platform].filter(r => !dates.has(r.date)),
-        ...rows
-      ];
+      if (platform === 'admin') {
+        rows = parseAdminCsv(e.target.result);
+        if (!rows.length) throw new Error('파싱된 데이터 없음 — 날짜가 YYYY-MM-DD 형식인지 확인해주세요');
+        // merge into admin store
+        rows.forEach(r => { STATE.data.admin[r.date] = { revenue: r.revenue, purchases: r.purchases, registrations: r.registrations, couponDown: r.couponDown, couponUsed: r.couponUsed }; });
+        count = rows.length;
+      } else {
+        rows = platform === 'meta' ? parseMeta(e.target.result) : parseGoogle(e.target.result);
+        if (!rows.length) throw new Error('파싱된 데이터 없음');
+        const dates = new Set(rows.map(r => r.date));
+        STATE.data[platform] = [
+          ...STATE.data[platform].filter(r => !dates.has(r.date)),
+          ...rows
+        ];
+        count = rows.length;
+      }
 
       await saveBin();
-      const st = $(platform+'Status');
+      const st = $(platform + 'Status');
       st.className = 'upload-status ok';
-      st.textContent = `✓ ${rows.length}행 로드 완료`;
-      $(platform+'Clear').style.display = 'inline';
-      $(platform+'Drop').classList.add('done');
+      st.textContent = `✓ ${count}행 로드 완료`;
+      $(platform + 'Clear').style.display = 'inline';
+      $(platform + 'Drop').classList.add('done');
+      // reload admin inputs if date matches
+      if (platform === 'admin') loadAdminInputs();
       renderAll();
     } catch(err) {
-      const st = $(platform+'Status');
+      const st = $(platform + 'Status');
       st.className = 'upload-status err';
-      st.textContent = '✕ 파싱 오류: ' + err.message;
+      st.textContent = '✕ 오류: ' + err.message;
     }
   };
   reader.readAsText(file, 'UTF-8');
 }
 
 async function clearUpload(platform) {
-  STATE.data[platform] = [];
-  await saveBin();
+  if (platform === 'admin') {
+    // don't clear all admin data, just reset the upload UI
+  } else {
+    STATE.data[platform] = [];
+    await saveBin();
+  }
   $(platform+'Status').textContent = '';
   $(platform+'Clear').style.display = 'none';
   $(platform+'Drop').classList.remove('done');
@@ -1102,6 +1150,60 @@ function aggregateRows(rows) {
 
 function getCampaignsDay(platform, date) {
   return STATE.data[platform].filter(r => r.date === date);
+}
+
+// ══════════════════════════════════════════════
+//  Admin Tab Switch
+// ══════════════════════════════════════════════
+function switchAdminTab(tab) {
+  const isManual = tab === 'manual';
+  $('panelManual').style.display = isManual ? 'block' : 'none';
+  $('panelCsv').style.display    = isManual ? 'none'  : 'block';
+  $('tabManual').style.background = isManual ? 'var(--accent)' : 'transparent';
+  $('tabManual').style.color      = isManual ? '#fff' : 'var(--text3)';
+  $('tabCsv').style.background    = isManual ? 'transparent' : 'var(--accent)';
+  $('tabCsv').style.color         = isManual ? 'var(--text3)' : '#fff';
+}
+
+// ── Admin CSV Parsing ──
+function parseAdminCsv(text) {
+  const lines = text.replace(/^\uFEFF/, '').trim().split('\n');
+  const rows = [];
+  // skip header if first cell looks like text
+  const start = isNaN(numClean(lines[0].split(',')[0])) ? 1 : 0;
+  for (let i = start; i < lines.length; i++) {
+    const cols = lines[i].split(',').map(c => c.trim());
+    if (cols.length < 2 || !cols[0]) continue;
+    const date = cols[0];
+    // validate date format YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    rows.push({
+      date,
+      revenue:       numClean(cols[1] || 0),
+      purchases:     numClean(cols[2] || 0),
+      registrations: numClean(cols[3] || 0),
+      couponDown:    numClean(cols[4] || 0),
+      couponUsed:    numClean(cols[5] || 0),
+    });
+  }
+  return rows;
+}
+
+// ── Admin CSV Template Download ──
+function downloadAdminTemplate() {
+  const header = '날짜,매출(원),구매(건),신규회원가입,쿠폰다운로드,쿠폰사용결제';
+  // generate last 7 days as sample
+  const rows = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    rows.push(d.toISOString().split('T')[0] + ',0,0,0,0,0');
+  }
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = '어드민_데이터_템플릿.csv';
+  a.click(); URL.revokeObjectURL(url);
 }
 
 // ══════════════════════════════════════════════
