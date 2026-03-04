@@ -396,7 +396,8 @@ tbody td:first-child { text-align: left; color: var(--text); font-family: 'Noto 
       <div class="step-num">2</div>
       <div class="step-body">
         <h4>API 키 복사</h4>
-        <p>로그인 후 우측 상단 프로필 → <b>API Keys</b> → <b>Master Key</b> 복사</p>
+        <p>로그인 후 우측 상단 프로필 → <b>API Keys</b> → <b>Secret Key</b> 옆 복사 버튼 클릭<br>
+        <span style="font-size:11px;color:#8888aa">⚠️ "Master Key" 또는 "Secret Key" 둘 다 가능, $2b$10$... 형태예요</span></p>
       </div>
     </div>
     <div class="setup-step" style="margin-bottom:4px">
@@ -772,10 +773,17 @@ function formatDate(d) {
 async function createBin() {
   const res = await fetch(`${JSONBIN_BASE}/b`, {
     method: 'POST',
-    headers: { 'Content-Type':'application/json', 'X-Master-Key': STATE.apiKey, 'X-Bin-Name':'ad-dashboard', 'X-Bin-Private':'false' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Master-Key': STATE.apiKey,
+      'X-Bin-Name': 'ad-dashboard',
+    },
     body: JSON.stringify(STATE.data)
   });
-  if (!res.ok) throw new Error('Bin 생성 실패');
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Bin 생성 실패 (${res.status}): ${txt}`);
+  }
   const j = await res.json();
   return j.metadata.id;
 }
@@ -784,7 +792,10 @@ async function loadBin() {
   const res = await fetch(`${JSONBIN_BASE}/b/${STATE.binId}/latest`, {
     headers: { 'X-Master-Key': STATE.apiKey }
   });
-  if (!res.ok) throw new Error('데이터 로드 실패');
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`로드 실패 (${res.status}): ${txt}`);
+  }
   const j = await res.json();
   return j.record;
 }
@@ -792,10 +803,13 @@ async function loadBin() {
 async function saveBin() {
   const res = await fetch(`${JSONBIN_BASE}/b/${STATE.binId}`, {
     method: 'PUT',
-    headers: { 'Content-Type':'application/json', 'X-Master-Key': STATE.apiKey },
+    headers: { 'Content-Type': 'application/json', 'X-Master-Key': STATE.apiKey },
     body: JSON.stringify(STATE.data)
   });
-  if (!res.ok) throw new Error('저장 실패');
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`저장 실패 (${res.status}): ${txt}`);
+  }
   STATE.lastSaved = new Date();
   updateLastUpdate();
 }
@@ -804,12 +818,20 @@ async function saveBin() {
 //  Setup
 // ══════════════════════════════════════════════
 async function initSetup() {
-  const key = $('apiKeyInput').value.trim();
+  const key   = $('apiKeyInput').value.trim();
   const binId = $('binIdInput').value.trim();
   if (!key) { showErr('API 키를 입력해주세요'); return; }
 
+  // 키 형식 사전 검증
+  if (!key.startsWith('$2b$') && !key.startsWith('$2a$')) {
+    showErr('API 키 형식이 잘못됐어요. JSONBin Master Key는 $2b$10$... 로 시작해요.');
+    return;
+  }
+
   STATE.apiKey = key;
   $('setupErr').style.display = 'none';
+  const btn = document.querySelector('.modal-card .btn-primary');
+  if (btn) { btn.textContent = '연결 중...'; btn.disabled = true; }
 
   try {
     if (binId) {
@@ -824,7 +846,15 @@ async function initSetup() {
     hideSetup();
     boot();
   } catch(e) {
-    showErr('연결 실패: ' + e.message + ' — API 키와 Bin ID를 확인해주세요');
+    // 상황별 친절한 안내
+    let msg = e.message;
+    if (msg.includes('401'))      msg = '❌ API 키가 올바르지 않아요. JSONBin에서 Master Key를 복사했는지 확인해주세요.';
+    else if (msg.includes('404')) msg = '❌ Bin ID를 찾을 수 없어요. Bin ID가 맞는지 확인하거나, Bin ID 칸을 비워두고 새로 만들어보세요.';
+    else if (msg.includes('429')) msg = '❌ 요청이 너무 많아요 (무료 플랜 한도 초과). 잠시 후 다시 시도해주세요.';
+    else if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) msg = '❌ 네트워크 오류예요. 인터넷 연결을 확인해주세요.';
+    showErr(msg);
+  } finally {
+    if (btn) { btn.textContent = '연결하기 →'; btn.disabled = false; }
   }
 }
 
