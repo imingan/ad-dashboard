@@ -102,7 +102,7 @@ body {
 .logo { font-family: 'Syne', sans-serif; }
 .logo-eyebrow { font-size: 9px; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; margin-bottom: 2px; }
 .logo-title { font-size: 20px; font-weight: 800; color: var(--text); }
-.date-picker-wrap { position: relative; }
+.date-picker-wrap { position: relative; display: flex; align-items: center; gap: 4px; }
 .date-btn {
   display: flex; align-items: center; gap: 8px;
   background: var(--bg2); border: 1px solid var(--border2);
@@ -372,10 +372,12 @@ tbody td:first-child { text-align: left; color: var(--text); font-family: 'Noto 
         <div class="logo-title">광고 성과 대시보드</div>
       </div>
       <div class="date-picker-wrap" id="datePickerWrap">
+        <button class="date-nav" onclick="shiftDate(-1)" title="하루 전">‹</button>
         <button class="date-btn" onclick="toggleCal()" id="dateBtn">
           <span class="date-btn-icon">📅</span>
           <span id="dateText">날짜 선택</span>
         </button>
+        <button class="date-nav" onclick="shiftDate(1)" title="하루 후">›</button>
         <div class="cal-popup" id="calPopup">
           <div class="cal-header">
             <button class="cal-nav" onclick="calShiftMonth(-1)">‹</button>
@@ -822,11 +824,26 @@ window.onload = () => {
 // ══════════════════════════════════════════════
 let calViewYear, calViewMonth; // 달력이 보여주는 연/월
 
+function shiftDate(d) {
+  const dt = new Date(STATE.selectedDate + 'T00:00:00');
+  dt.setDate(dt.getDate() + d);
+  STATE.selectedDate = dt.toISOString().split('T')[0];
+  updateDateDisplay();
+  // 달력이 열려있으면 같이 동기화
+  if ($('calPopup').classList.contains('open')) {
+    calViewYear  = dt.getFullYear();
+    calViewMonth = dt.getMonth();
+    renderCal();
+  }
+  renderAll();
+}
+
 function toggleCal() {
   const popup = $('calPopup');
   if (popup.classList.contains('open')) {
     popup.classList.remove('open');
   } else {
+    // 항상 선택된 날짜 기준 월로 열기
     const d = STATE.selectedDate ? new Date(STATE.selectedDate + 'T00:00:00') : new Date();
     calViewYear  = d.getFullYear();
     calViewMonth = d.getMonth();
