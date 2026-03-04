@@ -108,15 +108,20 @@ body { display: flex; flex-direction: column; }
   padding: 24px;
 }
 
-/* ── Sticky KPI Cards ── */
+/* ── Sticky Chart Header (period tabs) ── */
+.sticky-chart-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 24px 0;
+  background: var(--bg);
+}
 .sticky-charts {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 10px;
   padding: 12px 24px 14px;
   background: var(--bg);
 }
-@media(max-width:1100px) { .sticky-charts { grid-template-columns: repeat(3, 1fr); } }
+@media(max-width:1200px) { .sticky-charts { grid-template-columns: repeat(3, 1fr); } }
 @media(max-width:700px)  { .sticky-charts { grid-template-columns: repeat(2, 1fr); } }
 
 .kpi-card {
@@ -458,18 +463,21 @@ tbody td:first-child { text-align: left; color: var(--text); font-family: 'Noto 
         </div>
       </div>
       <div class="header-right">
-        <div class="period-tabs" id="periodTabs">
-          <button class="period-tab active" onclick="setPeriod('daily',this)">일별</button>
-          <button class="period-tab" onclick="setPeriod('weekly',this)">주별</button>
-          <button class="period-tab" onclick="setPeriod('monthly',this)">월별</button>
-        </div>
         <div class="live-badge"><div class="live-dot"></div>LIVE</div>
         <span class="last-update" id="lastUpdate"></span>
         <button class="btn btn-ghost" onclick="showSetup()" style="font-size:12px;padding:6px 12px">⚙ 설정</button>
       </div>
     </div>
 
-    <!-- KPI 카드 패널 (항상 보임) -->
+    <!-- 기간 선택 + KPI 카드 패널 -->
+    <div class="sticky-chart-header">
+      <div class="period-tabs" id="periodTabs">
+        <button class="period-tab active" onclick="setPeriod('daily',this)">일별</button>
+        <button class="period-tab" onclick="setPeriod('weekly',this)">주별</button>
+        <button class="period-tab" onclick="setPeriod('monthly',this)">월별</button>
+      </div>
+      <span class="period-label" style="font-size:12px;color:var(--text3)"></span>
+    </div>
     <div class="sticky-charts" id="stickyKpis">
       <div class="kpi-card" style="--kpi-color:#f5c842">
         <div class="kpi-card-label">총 매출</div>
@@ -500,6 +508,12 @@ tbody td:first-child { text-align: left; color: var(--text); font-family: 'Noto 
         <div class="kpi-card-value" id="kpi-roas">-</div>
         <div id="kpi-roas-delta"></div>
         <div class="kpi-spark"><canvas id="spark-roas"></canvas></div>
+      </div>
+      <div class="kpi-card" style="--kpi-color:#1a8c3e">
+        <div class="kpi-card-label">앱 설치 (Google)</div>
+        <div class="kpi-card-value" id="kpi-installs">-</div>
+        <div id="kpi-installs-delta"></div>
+        <div class="kpi-spark"><canvas id="spark-installs"></canvas></div>
       </div>
     </div>
 
@@ -1305,78 +1319,121 @@ function renderSparkline(canvasId, data, color) {
   });
 }
 
-// ── KPI 카드 + 스파크라인 렌더 ──
+// ── KPI 카드 + 스파크라인 렌더 (기간 연동) ──
 function renderStickyKpis() {
-  const d = STATE.selectedDate;
-  const days14 = getLast14Days(d);
-  const d1 = prevDate(d);
+  const d      = STATE.selectedDate;
+  const period = STATE.period;
+  const cur    = getPeriodRange(d, period);
+  const prev   = getPrevPeriodRange(d, period);
 
-  // 일별 집계
-  const adminDay  = getAdminDay(d);
-  const adminDay1 = getAdminDay(d1);
+  // 현재 기간 집계
+  const admin   = period === 'daily' ? getAdminDay(d) : aggregateAdminRange(cur.start, cur.end);
+  const admin1  = period === 'daily' ? getAdminDay(prevDate(d)) : aggregateAdminRange(prev.start, prev.end);
+  const metaN   = getPlatformRange('meta',   cur.start, cur.end);
+  const metaP   = getPlatformRange('meta',   prev.start, prev.end);
+  const googleN = getPlatformRange('google', cur.start, cur.end);
+  const googleP = getPlatformRange('google', prev.start, prev.end);
 
-  const metaDay   = getPlatformRange('meta',   d,  d);
-  const metaDay1  = getPlatformRange('meta',   d1, d1);
-  const googleDay = getPlatformRange('google', d,  d);
-  const googleDay1= getPlatformRange('google', d1, d1);
-
-  const totalSpend  = (metaDay?.spend  || 0) + (googleDay?.spend  || 0);
-  const totalSpend1 = (metaDay1?.spend || 0) + (googleDay1?.spend || 0);
-  const revenue     = adminDay?.revenue || 0;
-  const revenue1    = adminDay1?.revenue || 0;
-  const purchases   = adminDay?.purchases || 0;
-  const purchases1  = adminDay1?.purchases || 0;
-  const regs        = adminDay?.registrations || 0;
-  const regs1       = adminDay1?.registrations || 0;
-  const roas        = totalSpend ? revenue / totalSpend : 0;
+  const totalSpend  = (metaN?.spend  || 0) + (googleN?.spend  || 0);
+  const totalSpend1 = (metaP?.spend  || 0) + (googleP?.spend  || 0);
+  const revenue     = admin?.revenue       || 0;
+  const revenue1    = admin1?.revenue      || 0;
+  const purchases   = admin?.purchases     || 0;
+  const purchases1  = admin1?.purchases    || 0;
+  const regs        = admin?.registrations || 0;
+  const regs1       = admin1?.registrations|| 0;
+  const installs    = googleN?.installs    || 0;
+  const installs1   = googleP?.installs    || 0;
+  const roas        = totalSpend  ? revenue  / totalSpend  : 0;
   const roas1       = totalSpend1 ? revenue1 / totalSpend1 : 0;
 
-  // 카드 값 업데이트
-  $('kpi-revenue').textContent  = revenue  ? `₩${won(revenue)}`    : '-';
-  $('kpi-purchases').textContent= purchases ? `${purchases}건`      : '-';
-  $('kpi-reg').textContent      = regs      ? `${regs}명`           : '-';
-  $('kpi-spend').textContent    = totalSpend ? `₩${won(totalSpend)}`  : '-';
-  $('kpi-roas').textContent     = roas      ? `${roas.toFixed(2)}x` : '-';
+  // 기간 라벨
+  const periodLabel = period === 'daily'
+    ? `어제 대비`
+    : period === 'weekly' ? `전주 대비`
+    : `전월 대비`;
+
+  // 카드 값
+  $('kpi-revenue').textContent   = revenue   ? `₩${won(revenue)}`    : '-';
+  $('kpi-purchases').textContent = purchases ? `${purchases}건`       : '-';
+  $('kpi-reg').textContent       = regs      ? `${regs}명`            : '-';
+  $('kpi-spend').textContent     = totalSpend ? `₩${won(totalSpend)}` : '-';
+  $('kpi-roas').textContent      = roas      ? `${roas.toFixed(2)}x`  : '-';
+  $('kpi-installs').textContent  = installs  ? `${num(installs)}건`   : '-';
 
   // 델타 배지
   function setDelta(elId, cur, prev, inverse=false) {
     const el = $(elId);
     if (!el || !cur || !prev) { el && (el.innerHTML = ''); return; }
-    const d = ((cur - prev) / Math.abs(prev)) * 100;
-    const good = inverse ? d < 0 : d > 0;
+    const pct  = ((cur - prev) / Math.abs(prev)) * 100;
+    const good  = inverse ? pct < 0 : pct > 0;
     const color = good ? '#16a05a' : '#d94040';
     const bg    = good ? 'rgba(22,160,90,.12)' : 'rgba(217,64,64,.12)';
-    const arrow = d > 0 ? '▲' : '▼';
-    el.innerHTML = `<span class="kpi-card-delta" style="color:${color};background:${bg}">${arrow} ${Math.abs(d).toFixed(1)}%  vs 전일</span>`;
+    const arrow = pct > 0 ? '▲' : '▼';
+    el.innerHTML = `<span class="kpi-card-delta" style="color:${color};background:${bg}">${arrow} ${Math.abs(pct).toFixed(1)}% ${periodLabel}</span>`;
   }
   setDelta('kpi-revenue-delta',   revenue,    revenue1,    false);
   setDelta('kpi-purchases-delta', purchases,  purchases1,  false);
   setDelta('kpi-reg-delta',       regs,       regs1,       false);
   setDelta('kpi-spend-delta',     totalSpend, totalSpend1, true);
   setDelta('kpi-roas-delta',      roas,       roas1,       false);
+  setDelta('kpi-installs-delta',  installs,   installs1,   false);
 
-  // 스파크라인 데이터 (14일)
-  const revenueData   = days14.map(dd => getAdminDay(dd)?.revenue || null);
-  const purchaseData  = days14.map(dd => getAdminDay(dd)?.purchases || null);
-  const regData       = days14.map(dd => getAdminDay(dd)?.registrations || null);
-  const spendData     = days14.map(dd => {
-    const m = getPlatformRange('meta', dd, dd);
-    const g = getPlatformRange('google', dd, dd);
-    return (m?.spend || 0) + (g?.spend || 0) || null;
-  });
-  const roasData      = days14.map(dd => {
-    const m = getPlatformRange('meta', dd, dd);
-    const g = getPlatformRange('google', dd, dd);
-    const a = getAdminDay(dd);
-    const sp = (m?.spend||0) + (g?.spend||0);
-    return sp && a?.revenue ? a.revenue / sp : null;
-  });
+  // 스파크라인: 기간별 버킷 생성
+  let buckets = [];
+  if (period === 'daily') {
+    // 최근 14일
+    buckets = getLast14Days(d);
+  } else if (period === 'weekly') {
+    // 최근 8주
+    buckets = [];
+    for (let i = 7; i >= 0; i--) {
+      const ref = new Date(d + 'T00:00:00');
+      ref.setDate(ref.getDate() - i * 7);
+      const wr = getPeriodRange(ref.toISOString().split('T')[0], 'weekly');
+      buckets.push({ start: wr.start, end: wr.end });
+    }
+  } else {
+    // 최근 6개월
+    buckets = [];
+    const base = new Date(d + 'T00:00:00');
+    for (let i = 5; i >= 0; i--) {
+      const m = new Date(base.getFullYear(), base.getMonth() - i, 1);
+      const start = m.toISOString().split('T')[0];
+      const end   = new Date(m.getFullYear(), m.getMonth()+1, 0).toISOString().split('T')[0];
+      buckets.push({ start, end });
+    }
+  }
+
+  function getBucketVal(bucket, fn) {
+    const s = typeof bucket === 'string' ? bucket : bucket.start;
+    const e = typeof bucket === 'string' ? bucket : bucket.end;
+    return fn(s, e);
+  }
+
+  const revenueData  = buckets.map(b => getBucketVal(b, (s,e) => aggregateAdminRange(s,e)?.revenue || null));
+  const purchaseData = buckets.map(b => getBucketVal(b, (s,e) => aggregateAdminRange(s,e)?.purchases || null));
+  const regData      = buckets.map(b => getBucketVal(b, (s,e) => aggregateAdminRange(s,e)?.registrations || null));
+  const spendData    = buckets.map(b => getBucketVal(b, (s,e) => {
+    const m = getPlatformRange('meta', s, e);
+    const g = getPlatformRange('google', s, e);
+    return (m?.spend||0)+(g?.spend||0) || null;
+  }));
+  const roasData     = buckets.map(b => getBucketVal(b, (s,e) => {
+    const m = getPlatformRange('meta', s, e);
+    const g = getPlatformRange('google', s, e);
+    const a = aggregateAdminRange(s, e);
+    const sp = (m?.spend||0)+(g?.spend||0);
+    return sp && a?.revenue ? a.revenue/sp : null;
+  }));
+  const installsData = buckets.map(b => getBucketVal(b, (s,e) => getPlatformRange('google',s,e)?.installs || null));
 
   renderSparkline('spark-revenue',   revenueData,  'rgb(200,154,0)');
   renderSparkline('spark-purchases', purchaseData, 'rgb(22,160,90)');
   renderSparkline('spark-reg',       regData,      'rgb(91,110,245)');
   renderSparkline('spark-spend',     spendData,    'rgb(0,112,224)');
   renderSparkline('spark-roas',      roasData,     'rgb(217,107,32)');
+  renderSparkline('spark-installs',  installsData, 'rgb(26,140,62)');
 }
 
 function renderCharts() {
