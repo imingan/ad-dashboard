@@ -544,6 +544,7 @@ tbody td:first-child { text-align: left; color: var(--text); font-family: 'Noto 
       <div class="admin-panel">
         <div style="display:flex;gap:4px;margin-bottom:16px;background:var(--bg3);border-radius:8px;padding:3px;width:fit-content">
           <button class="admin-tab active" id="tabManual" onclick="switchAdminTab('manual')" style="padding:5px 16px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;background:var(--accent);color:#fff;transition:all .15s">✏️ 직접 입력</button>
+          <button class="admin-tab" id="tabPaste" onclick="switchAdminTab('paste')" style="padding:5px 16px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;background:transparent;color:var(--text3);transition:all .15s">📋 붙여넣기</button>
           <button class="admin-tab" id="tabCsv" onclick="switchAdminTab('csv')" style="padding:5px 16px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;background:transparent;color:var(--text3);transition:all .15s">📂 CSV 업로드</button>
         </div>
         <div id="panelManual">
@@ -560,7 +561,23 @@ tbody td:first-child { text-align: left; color: var(--text); font-family: 'Noto 
             <span style="font-size:11px;color:var(--text3);margin-left:auto">JSONBin에 자동 저장돼요</span>
           </div>
         </div>
-        <div id="panelCsv" style="display:none">
+        <div id="panelPaste" style="display:none">
+          <div style="margin-bottom:10px;font-size:12px;color:var(--text3)">
+            스프레드시트에서 데이터 복사 후 아래에 붙여넣기 하세요.<br>
+            <span style="color:var(--text2)">▲▼ 증감 컬럼, ₩기호, '건' 등 그대로 붙여넣어도 돼요.</span>
+          </div>
+          <textarea id="pasteArea"
+            placeholder="여기에 Ctrl+V로 붙여넣기&#10;&#10;예시:&#10;25.05.02 (금)	129	64	31	11	35.48%	7&#10;25.05.05 (월)	8건	₩1,964,000	₩947,833	207.21%"
+            style="width:100%;height:180px;background:var(--bg2);border:1.5px solid var(--border2);border-radius:var(--r);padding:12px;font-size:12px;font-family:'DM Mono',monospace;color:var(--text);resize:vertical;outline:none;transition:border-color .15s;box-sizing:border-box"
+            onfocus="this.style.borderColor='var(--accent)'"
+            onblur="this.style.borderColor='var(--border2)'"
+          ></textarea>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="processPaste()" style="font-size:12px;padding:8px 18px">📥 데이터 불러오기</button>
+            <button class="btn btn-ghost" onclick="$('pasteArea').value='';$('pasteMsg').textContent=''" style="font-size:12px;padding:8px 14px">초기화</button>
+            <span id="pasteMsg" style="font-size:12px;color:var(--green)"></span>
+          </div>
+        </div>
           <div class="upload-card" id="adminDrop" ondragover="dragOver(event,'adminDrop')" ondragleave="dragLeave('adminDrop')" ondrop="dropFile(event,'admin')" style="margin-bottom:14px">
             <div class="upload-platform">
               <div class="platform-dot" style="background:var(--accent)"></div>
@@ -1213,37 +1230,254 @@ function getCampaignsDay(platform, date) {
 //  Admin Tab Switch
 // ══════════════════════════════════════════════
 function switchAdminTab(tab) {
-  const isManual = tab === 'manual';
-  $('panelManual').style.display = isManual ? 'block' : 'none';
-  $('panelCsv').style.display    = isManual ? 'none'  : 'block';
-  $('tabManual').style.background = isManual ? 'var(--accent)' : 'transparent';
-  $('tabManual').style.color      = isManual ? '#fff' : 'var(--text3)';
-  $('tabCsv').style.background    = isManual ? 'transparent' : 'var(--accent)';
-  $('tabCsv').style.color         = isManual ? 'var(--text3)' : '#fff';
+  ['manual','paste','csv'].forEach(t => {
+    const id   = t.charAt(0).toUpperCase() + t.slice(1);
+    const btn  = $('tab'   + id);
+    const panel= $('panel' + id);
+    const active = t === tab;
+    if (btn)  { btn.style.background  = active ? 'var(--accent)' : 'transparent'; btn.style.color = active ? '#fff' : 'var(--text3)'; }
+    if (panel)  panel.style.display   = active ? 'block' : 'none';
+  });
 }
 
-// ── Admin CSV Parsing ──
-function parseAdminCsv(text) {
-  const lines = text.replace(/^\uFEFF/, '').trim().split('\n');
-  const rows = [];
-  // skip header if first cell looks like text
-  const start = isNaN(numClean(lines[0].split(',')[0])) ? 1 : 0;
-  for (let i = start; i < lines.length; i++) {
-    const cols = lines[i].split(',').map(c => c.trim());
-    if (cols.length < 2 || !cols[0]) continue;
-    const date = cols[0];
-    // validate date format YYYY-MM-DD
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
-    rows.push({
-      date,
-      revenue:       numClean(cols[1] || 0),
-      purchases:     numClean(cols[2] || 0),
-      registrations: numClean(cols[3] || 0),
-      couponDown:    numClean(cols[4] || 0),
-      couponUsed:    numClean(cols[5] || 0),
-    });
+function processPaste() {
+  const text = ($('pasteArea').value || '').trim();
+  if (!text) return;
+  const rows = parseAdminCsv(text);
+  const msg  = $('pasteMsg');
+  if (!rows.length) {
+    msg.style.color = 'var(--red)';
+    msg.textContent = '❌ 인식된 날짜 데이터가 없어요. 형식을 확인해주세요.';
+    return;
   }
-  return rows;
+  rows.forEach(r => {
+    if (!STATE.data.admin[r.date]) STATE.data.admin[r.date] = {};
+    const cur = STATE.data.admin[r.date];
+    if (r.revenue)       cur.revenue       = r.revenue;
+    if (r.purchases)     cur.purchases     = r.purchases;
+    if (r.registrations) cur.registrations = r.registrations;
+    if (r.couponDown)    cur.couponDown    = r.couponDown;
+    if (r.couponUsed)    cur.couponUsed    = r.couponUsed;
+  });
+  saveToCloud().then(() => {
+    msg.style.color = 'var(--green)';
+    msg.textContent = `✓ ${rows.length}일치 저장 완료!`;
+    renderAll();
+  });
+}
+
+
+// ── Admin CSV Parsing (실제 스프레드시트 형식 완전 지원) ──
+// Table1: 날짜 | 미지수 | (증감) | 회원가입 | (증감) | 쿠폰다운 | (증감) | 쿠폰사용 | (증감) | % | 구매건수 | (증감)
+// Table2: 일자 | 구매건수 | (증감) | 매출 | (증감) | 광고비 | (증감) | ROAS
+function parseAdminCsv(text) {
+  const lines = text.replace(/^\uFEFF/, '').trim().split(/\r?\n/);
+  const result = {};
+  const sep = text.includes('\t') ? '\t' : ',';
+
+  // 날짜 파싱: "25.5 .2 (금)" / "25.05.02 (금)" / "2025-05-02" 등
+  function parseDate(raw) {
+    if (!raw) return null;
+    // 괄호 요일, 공백 제거
+    const s = raw.replace(/\(.*?\)/g, '').replace(/\s+/g, '').trim();
+    let m;
+    m = s.match(/^(\d{2})\.(\d{1,2})\.(\d{1,2})$/);
+    if (m) return `20${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+    m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return s;
+    m = s.match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})$/);
+    if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+    return null;
+  }
+
+  // 숫자만 추출: ₩, 쉼표, 건, %, 공백 제거. 없거나 '-' → 0
+  function cleanNum(v) {
+    if (v === undefined || v === null) return 0;
+    const s = String(v).replace(/[₩,건명%\s]/g, '').trim();
+    if (!s || s === '-') return 0;
+    const n = parseFloat(s.replace(/[^0-9.]/g, ''));
+    return isNaN(n) ? 0 : Math.round(n);
+  }
+
+  // 증감 셀 여부: 빈칸, ▲▼ 포함
+  function isDelta(v) {
+    const s = String(v || '').trim();
+    return s === '' || /[▲▼]/.test(s);
+  }
+
+  let mode = null; // null(table1) | 'roas'(table2)
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim()) continue;
+
+    // 섹션 구분 감지
+    if (/Daily\s*ROAS/i.test(line)) { mode = 'roas_next'; continue; }
+    if (mode === 'roas_next' || (/일자|날짜/.test(line) && /매출/.test(line) && /구매/.test(line))) {
+      mode = 'roas'; continue;
+    }
+    // Table1 헤더 감지 (있을 경우)
+    if (/날짜|일자/.test(line) && /회원가입|쿠폰/.test(line)) { mode = null; continue; }
+
+    const cells = line.split(sep);
+    const date  = parseDate(cells[0]);
+    if (!date) continue;
+    if (!result[date]) result[date] = {};
+
+    // 1~끝 셀에서 증감 셀 제거 → 실제 값만 추출
+    const vals = [];
+    for (let j = 1; j < cells.length; j++) {
+      if (!isDelta(cells[j])) vals.push(cells[j].trim());
+    }
+
+    if (mode === 'roas') {
+      // vals: [구매건수, 매출, 광고비(skip), ROAS(skip)]
+      const purchases = cleanNum(vals[0]);
+      const revenue   = cleanNum(vals[1]);
+      if (purchases > 0) result[date].purchases = purchases;
+      if (revenue   > 0) result[date].revenue   = revenue;
+
+    } else {
+      // Table1 vals: [미지수(skip), 회원가입, 쿠폰다운, 쿠폰사용, %, 구매건수]
+      //               [0]          [1]        [2]       [3]       [4]  [5]
+      if (vals[1] !== undefined) result[date].registrations = cleanNum(vals[1]) || result[date].registrations || 0;
+      if (vals[2] !== undefined) result[date].couponDown    = cleanNum(vals[2]) || result[date].couponDown    || 0;
+      if (vals[3] !== undefined) result[date].couponUsed    = cleanNum(vals[3]) || result[date].couponUsed    || 0;
+      if (vals[5] !== undefined && !result[date].purchases) {
+        const p = cleanNum(vals[5]);
+        if (p > 0) result[date].purchases = p;
+      }
+    }
+  }
+
+  return Object.entries(result)
+    .map(([date, d]) => ({
+      date,
+      revenue:       d.revenue       || 0,
+      purchases:     d.purchases     || 0,
+      registrations: d.registrations || 0,
+      couponDown:    d.couponDown    || 0,
+      couponUsed:    d.couponUsed    || 0,
+    }))
+    .filter(r => r.date);
+}
+  const lines = text.replace(/^\uFEFF/, '').trim().split(/\r?\n/);
+  const result = {}; // date → data object
+
+  // 날짜 파싱: 25.5 .2 (금) / 25.05.02 (금) / 2025-05-02 등
+  function parseDate(raw) {
+    if (!raw) return null;
+    const s = raw.replace(/\(.*?\)/g, '').replace(/\s+/g, '').trim();
+    // YY.M.D or YY.MM.DD
+    let m = s.match(/^(\d{2})\.(\d{1,2})\.(\d{1,2})$/);
+    if (m) return `20${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+    // YYYY-MM-DD
+    m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return s;
+    // YYYY.MM.DD
+    m = s.match(/^(\d{4})\.(\d{2})\.(\d{2})$/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    return null;
+  }
+
+  // 숫자 클렌징: ₩, 쉼표, 건, 명, %, ▲, ▼, 공백 제거 / '-' → 0
+  function cleanNum(v) {
+    if (!v && v !== 0) return 0;
+    const s = String(v).replace(/[₩,건명%\s]/g, '').trim();
+    if (!s || s === '-' || s === '') return 0;
+    const n = parseFloat(s.replace(/[^0-9.]/g, ''));
+    return isNaN(n) ? 0 : n;
+  }
+
+  // 셀이 증감 컬럼인지 판단 (▲▼ 포함 or 비율%)
+  function isDeltaCell(v) {
+    if (!v) return false;
+    return /[▲▼]/.test(v) || /^\s*[-+]?[\d,]+\s*$/.test(v) && false;
+  }
+
+  // 탭/콤마 모두 처리
+  const sep = text.includes('\t') ? '\t' : ',';
+
+  // 테이블 1 감지: 헤더에 회원가입/쿠폰 포함
+  // 테이블 2 감지: 헤더에 매출/ROAS 포함
+  let mode = null; // 'signup' | 'roas' | null
+
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    if (!raw.trim()) { mode = null; continue; }
+
+    const cells = sep === '\t'
+      ? raw.split('\t')
+      : parseCSVRow(raw);
+
+    const first = (cells[0] || '').trim();
+
+    // 헤더 감지
+    if (/회원가입|쿠폰|가입/.test(raw) && /날짜|일자|일/.test(raw)) {
+      mode = 'signup'; continue;
+    }
+    if (/매출|ROAS|roas|구매\s*건/.test(raw) && /날짜|일자/.test(raw)) {
+      mode = 'roas'; continue;
+    }
+    // 구분선 / 빈 섹션 헤더 스킵
+    if (!first || /^[=\-_]+$/.test(first) || /Daily|Weekly|Monthly/i.test(first)) {
+      continue;
+    }
+
+    const date = parseDate(first);
+    if (!date) continue;
+
+    if (!result[date]) result[date] = {};
+
+    if (mode === 'signup') {
+      // 컬럼 구조: 날짜 | 회원가입 | (증감?) | 쿠폰다운 | (증감?) | 쿠폰사용 | (증감?) | (%) | 구매건수 | ...
+      // ▲▼ 있는 셀은 증감 → 건너뜀
+      const vals = cells.slice(1).filter(c => !isDeltaCell(c));
+      // vals[0]=회원가입, vals[1]=쿠폰다운, vals[2]=쿠폰사용, vals[3]=구매건수(있으면)
+      if (vals[0] !== undefined) result[date].registrations = cleanNum(vals[0]) || result[date].registrations || 0;
+      if (vals[1] !== undefined) result[date].couponDown    = cleanNum(vals[1]) || result[date].couponDown    || 0;
+      if (vals[2] !== undefined) result[date].couponUsed    = cleanNum(vals[2]) || result[date].couponUsed    || 0;
+      // 마지막 숫자 컬럼이 구매건수일 수 있음 (있을 때만)
+      if (vals[3] !== undefined && !/%/.test(String(vals[3]))) {
+        const p = cleanNum(vals[3]);
+        if (p > 0) result[date].purchases = p;
+      }
+
+    } else if (mode === 'roas') {
+      // 컬럼: 날짜 | 구매건수 | (증감?) | 매출 | (증감?) | 광고비 | (증감?) | ROAS
+      const vals = cells.slice(1).filter(c => !isDeltaCell(c));
+      // vals[0]=구매건수, vals[1]=매출, vals[2]=광고비(스킵), vals[3]=ROAS(스킵)
+      if (vals[0] !== undefined) {
+        const p = cleanNum(vals[0]);
+        if (p > 0) result[date].purchases = p;
+      }
+      if (vals[1] !== undefined) {
+        const r = cleanNum(vals[1]);
+        if (r > 0) result[date].revenue = r;
+      }
+
+    } else {
+      // mode 미지정: 헤더 없이 바로 데이터인 경우 — 콤마 CSV 단순 파싱
+      const vals = cells.slice(1).map(c => c.trim());
+      if (vals.length >= 4) {
+        result[date].revenue       = cleanNum(vals[0]) || result[date].revenue       || 0;
+        result[date].purchases     = cleanNum(vals[1]) || result[date].purchases     || 0;
+        result[date].registrations = cleanNum(vals[2]) || result[date].registrations || 0;
+        result[date].couponDown    = cleanNum(vals[3]) || result[date].couponDown    || 0;
+        result[date].couponUsed    = cleanNum(vals[4]) || result[date].couponUsed    || 0;
+      }
+    }
+  }
+
+  // result → rows 배열
+  return Object.entries(result).map(([date, d]) => ({
+    date,
+    revenue:       d.revenue       || 0,
+    purchases:     d.purchases     || 0,
+    registrations: d.registrations || 0,
+    couponDown:    d.couponDown    || 0,
+    couponUsed:    d.couponUsed    || 0,
+  })).filter(r => r.date);
 }
 
 // ── Admin CSV Template Download ──
